@@ -10,6 +10,20 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # Мажорные обновления toolchain требуют отдельной миграции сборки:
+    # AGP 9 нужен Gradle >= 9.6, Kotlin 2.1+ требует compilerOptions DSL
+    # и синхронного обновления Compose plugin и coroutines.
+    ignore:
+      - dependency-name: "com.android.application"
+        versions: [">=9.0.0"]
+      - dependency-name: "gradle-wrapper"
+        versions: [">=9.0"]
+      - dependency-name: "org.jetbrains.kotlin.android"
+        versions: [">=2.1.0"]
+      - dependency-name: "org.jetbrains.kotlin.plugin.compose"
+        versions: [">=2.1.0"]
+      - dependency-name: "org.jetbrains.kotlinx:kotlinx-coroutines-android"
+        versions: [">=1.11.0"]
 
   # Действия workflow обновляются отдельно — publish job запускается только
   # по тегу, поэтому Dependabot-PR проверяются job'ом только для чтения.
