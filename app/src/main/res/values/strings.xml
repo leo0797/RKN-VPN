@@ -159,6 +159,9 @@
     <string name="check_url_help">mihomo запрашивает этот адрес через выбранный узел. По умолчанию — gstatic generate_204.</string>
     <string name="backup_export_warning_title">Экспорт настроек</string>
     <string name="backup_export_warning_text">Файл бэкапа содержит ссылку на подписку и список серверов в открытом виде. Храните его в надёжном месте и не отправляйте посторонним.</string>
+    <string name="auto_switch_title">Автопереключение узла</string>
+    <string name="auto_switch_subtitle">Если выбранный узел не отвечает, попробовать другой рабочий узел</string>
+    <string name="toast_auto_switched">Узел не отвечал, переключились на %1$s</string>
     <string name="vpn_visibility_note">Android не позволяет полностью скрыть факт использования VPN от других приложений без root-доступа. Приложение убирает типичные утечки (DNS, IPv6, открытый локальный прокси), но само наличие VPN-интерфейса видно другим приложениям.</string>
     <string name="import_title">Импорт</string>
     <string name="import_dialog_text">Вставьте ссылку на подписку, YAML/JSON конфиг или несколько share-ссылок. Ссылка http(s) будет сохранена как подписка.</string>

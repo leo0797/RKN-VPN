@@ -16,6 +16,7 @@ import app.rkn.vpn.core.ConfigImporter
 import app.rkn.vpn.core.CoreRunner
 import app.rkn.vpn.core.LocalProxy
 import app.rkn.vpn.core.MihomoApi
+import app.rkn.vpn.core.NodeSelector
 import app.rkn.vpn.core.Ping
 import app.rkn.vpn.core.Strings
 import app.rkn.vpn.data.AppState
@@ -63,6 +64,10 @@ object VpnController {
     private var reconnectJob: Job? = null
     private var autoReconnectJob: Job? = null
     private var healthJob: Job? = null
+    private var autoSwitchJob: Job? = null
+    // Узлы, уже проверенные автопереключением в рамках текущей сессии.
+    // Без этого мёртвые узлы переключались бы друг на друга по кругу.
+    private val autoSwitchTriedIds = mutableSetOf<String>()
     private var wantConnected = false
     private var networkLost = false
     private var watchdogStarted = false
@@ -106,6 +111,7 @@ object VpnController {
             splitEnabled = p.splitEnabled,
             splitApps = p.splitApps,
             checkUrl = p.checkUrl,
+            autoSwitch = p.autoSwitch,
             theme = p.theme,
             language = p.language,
             corePresent = CoreRunner(ctx).isAvailable()
@@ -135,6 +141,7 @@ object VpnController {
         }
         wantConnected = true
         prefs?.vpnWanted = true
+        autoSwitchTriedIds.clear()
         val intent = Intent(ctx, RknVpnService::class.java)
             .setAction(RknVpnService.ACTION_START)
         runCatching {
@@ -158,6 +165,8 @@ object VpnController {
         reconnectJob?.cancel()
         autoReconnectJob?.cancel()
         healthJob?.cancel()
+        autoSwitchJob?.cancel()
+        autoSwitchTriedIds.clear()
         val intent = Intent(ctx, RknVpnService::class.java)
             .setAction(RknVpnService.ACTION_STOP)
         runCatching { ctx.startService(intent) }
@@ -225,6 +234,7 @@ object VpnController {
         this.proxyPort = mixedPort
         this.proxyUser = proxyUser
         this.proxyPassword = proxyPassword
+        autoSwitchJob?.cancel()
         _state.update {
             it.copy(
                 connecting = false,
@@ -271,6 +281,54 @@ object VpnController {
                     toast = if (latency == null) text(R.string.toast_node_unreachable) else it.toast
                 )
             }
+            if (latency == null) maybeAutoSwitchNode()
+        }
+    }
+
+    /**
+     * Выбранный узел не отвечает — пробуем до трёх запасных через тот же API
+     * ядра. Каждый проверенный узел запоминается до явного отключения/смены
+     * узла пользователем: иначе мёртвые узлы переключались бы друг на друга
+     * по кругу при каждом перезапуске сервиса.
+     */
+    private fun maybeAutoSwitchNode() {
+        if (!_state.value.autoSwitch) return
+        if (!wantConnected || !_state.value.connected) return
+        val snapshot = _state.value
+        val selected = snapshot.selectedId ?: return
+        autoSwitchTriedIds.add(selected)
+        val candidates = NodeSelector.fallbackCandidates(
+            snapshot.nodes,
+            selected,
+            snapshot.effectiveLatencies
+        ).filterNot { it.id in autoSwitchTriedIds }
+        if (candidates.isEmpty()) return
+        autoSwitchJob?.cancel()
+        autoSwitchJob = scope.launch {
+            val port = apiPort ?: return@launch
+            val names = ConfigBuilder.proxyNames(snapshot.nodes, selected)
+            val testUrl = prefs?.checkUrl ?: MihomoApi.DEFAULT_TEST_URL
+            for (node in candidates) {
+                if (_state.value.selectedId != selected) return@launch
+                autoSwitchTriedIds.add(node.id)
+                val name = names[node.id] ?: continue
+                val latency = withContext(Dispatchers.IO) {
+                    MihomoApi.delay(port, apiSecret, name, 4_000, testUrl)
+                }
+                if (port != this@VpnController.apiPort || !wantConnected) return@launch
+                if (_state.value.selectedId != selected) return@launch
+                if (latency == null) continue
+                requirePrefs().selectedId = node.id
+                _state.update {
+                    it.copy(
+                        selectedId = node.id,
+                        healthLatencies = mapOf(node.id to latency),
+                        toast = text(R.string.toast_auto_switched, node.name)
+                    )
+                }
+                scheduleReconnect(0L)
+                return@launch
+            }
         }
     }
 
@@ -293,6 +351,7 @@ object VpnController {
         this.proxyPort = mixedPort
         this.proxyUser = proxyUser
         this.proxyPassword = proxyPassword
+        autoSwitchJob?.cancel()
         _state.update {
             it.copy(reconnecting = false, connected = true, startedAt = startedAt, error = null)
         }
@@ -320,6 +379,8 @@ object VpnController {
         proxyPort = null
         proxyUser = ""
         proxyPassword = ""
+        autoSwitchTriedIds.clear()
+        autoSwitchJob?.cancel()
         _state.update {
             it.copy(
                 connected = false,
@@ -351,6 +412,8 @@ object VpnController {
         proxyPort = null
         proxyUser = ""
         proxyPassword = ""
+        autoSwitchTriedIds.clear()
+        autoSwitchJob?.cancel()
         _state.update {
             it.copy(
                 connected = false,
@@ -370,6 +433,7 @@ object VpnController {
     fun selectNode(id: String) {
         val p = requirePrefs()
         p.selectedId = id
+        autoSwitchTriedIds.clear()
         _state.update { it.copy(selectedId = id, error = null) }
         if (_state.value.connected) connect()
     }
@@ -469,6 +533,13 @@ object VpnController {
         _state.update { it.copy(checkUrl = p.checkUrl) }
     }
 
+    /** Автоматический переход на другой узел, если выбранный не отвечает. */
+    fun setAutoSwitch(enabled: Boolean) {
+        val p = requirePrefs()
+        p.autoSwitch = enabled
+        _state.update { it.copy(autoSwitch = enabled) }
+    }
+
     fun refreshSubscription(showToast: Boolean = true) {
         scope.launch { refreshSubscriptionInternal(showToast) }
     }
@@ -494,6 +565,7 @@ object VpnController {
                         val selected = result.nodes.firstOrNull { it.id == oldSelected }?.id
                             ?: result.nodes.first().id
                         p.selectedId = selected
+                        autoSwitchTriedIds.clear()
                         p.subscription = result.info
                         p.updateIntervalHours = result.info.updateIntervalHours
                         p.saveLastRefresh()
@@ -603,6 +675,7 @@ object VpnController {
             .put("language", p.language)
             .put("updateIntervalHours", p.updateIntervalHours)
             .put("checkUrl", p.checkUrl)
+            .put("autoSwitch", p.autoSwitch)
             .toString(2)
     }
 
@@ -628,6 +701,9 @@ object VpnController {
             p.language = obj.optString("language", "system")
             p.updateIntervalHours = obj.optInt("updateIntervalHours", 12).coerceIn(1, 168)
             p.checkUrl = obj.optString("checkUrl", Prefs.DEFAULT_CHECK_URL)
+            p.autoSwitch = if (obj.has("autoSwitch")) {
+                obj.optBoolean("autoSwitch", true)
+            } else true
         }
         if (restored.isFailure) {
             _state.update {
@@ -639,6 +715,7 @@ object VpnController {
         val selected = p.selectedId?.takeIf { id -> nodes.any { it.id == id } }
             ?: nodes.firstOrNull()?.id
         p.selectedId = selected
+        autoSwitchTriedIds.clear()
         _state.update {
             it.copy(
                 nodes = nodes,
@@ -651,6 +728,7 @@ object VpnController {
                 splitEnabled = p.splitEnabled,
                 splitApps = p.splitApps,
                 checkUrl = p.checkUrl,
+                autoSwitch = p.autoSwitch,
                 theme = p.theme,
                 language = p.language,
                 latencies = emptyMap(),

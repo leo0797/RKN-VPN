@@ -67,6 +67,7 @@ fun RoutingScreen(
     state: AppState,
     onModeChange: (String) -> Unit,
     onLanDirectChange: (Boolean) -> Unit,
+    onAutoSwitchChange: (Boolean) -> Unit,
     onAddRule: (RoutingRule) -> Unit,
     onDeleteRule: (String) -> Unit
 ) {
@@ -122,6 +123,12 @@ fun RoutingScreen(
                         subtitle = stringResource(R.string.lan_direct_subtitle),
                         checked = state.lanDirect,
                         onChange = onLanDirectChange
+                    )
+                    LabeledSwitch(
+                        title = stringResource(R.string.auto_switch_title),
+                        subtitle = stringResource(R.string.auto_switch_subtitle),
+                        checked = state.autoSwitch,
+                        onChange = onAutoSwitchChange
                     )
                 }
             }
