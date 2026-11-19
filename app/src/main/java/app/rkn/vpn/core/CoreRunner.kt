@@ -53,6 +53,7 @@ class CoreRunner(context: Context) {
         while (System.currentTimeMillis() < deadline) {
             val proc = process ?: break
             if (!proc.isAlive) {
+                stop()
                 error("mihomo завершился при запуске.\n${logTail(25)}")
             }
             if (canConnect(readyPort)) return
@@ -63,11 +64,16 @@ class CoreRunner(context: Context) {
     }
 
     fun stop() {
-        val proc = process ?: return
+        val proc = process
         process = null
-        runCatching { proc.destroy() }
-        runCatching { proc.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) }
-        if (proc.isAlive) runCatching { proc.destroyForcibly() }
+        if (proc != null) {
+            runCatching { proc.destroy() }
+            runCatching { proc.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) }
+            if (proc.isAlive) runCatching { proc.destroyForcibly() }
+        }
+        // В конфиге лежат пароли локального SOCKS/API и секреты аутбаундов —
+        // не оставляем его на диске после остановки ядра. start() создаст его заново.
+        runCatching { configFile.delete() }
     }
 
     fun logTail(maxLines: Int = 120): String {
