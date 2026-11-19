@@ -123,11 +123,11 @@
     <string name="save_backup">Сохранить копию настроек</string>
     <string name="import_config">Вставить конфиг</string>
     <string name="subscription_paste_title">Добавить подписку</string>
-    <string name="subscription_paste_text">Вставьте ссылку подписки (http:// или https://). По ней приложение загрузит серверы.</string>
+    <string name="subscription_paste_text">Вставьте ссылку подписки https://. По ней приложение загрузит серверы.</string>
     <string name="subscription_paste_label">Ссылка подписки</string>
     <string name="subscription_paste_action">Сохранить</string>
     <string name="error_qr_not_subscription">QR-код не содержит ссылки подписки. Для конфига используйте «Вставить конфиг» или «Из файла».</string>
-    <string name="error_not_subscription_link">Это не ссылка подписки. Нужна ссылка http:// или https://.</string>
+    <string name="error_not_subscription_link">Это не ссылка подписки. Нужна ссылка https://.</string>
     <string name="appearance">Оформление</string>
     <string name="theme_system">Системная</string>
     <string name="theme_light">Светлая</string>
@@ -152,7 +152,7 @@
     <string name="up_to_date">Актуальная версия или сервер обновлений недоступен</string>
     <string name="vpn_visibility_note">Android не позволяет полностью скрыть факт использования VPN от других приложений без root-доступа. Приложение убирает типичные утечки (DNS, IPv6, открытый локальный прокси), но само наличие VPN-интерфейса видно другим приложениям.</string>
     <string name="import_title">Импорт</string>
-    <string name="import_dialog_text">Вставьте ссылку на подписку, YAML/JSON конфиг или несколько share-ссылок. Ссылка http(s) будет сохранена как подписка.</string>
+    <string name="import_dialog_text">Вставьте ссылку на подписку, YAML/JSON конфиг или несколько share-ссылок. Ссылка https:// будет сохранена как подписка.</string>
     <string name="import_link_label">Ссылка или конфиг</string>
     <string name="import_action">Импортировать</string>
     <string name="update_available">Доступна версия %1$s</string>

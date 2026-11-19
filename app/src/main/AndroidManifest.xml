@@ -14,7 +14,10 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
-    <!-- Установка скачанного APK через системный установщик. -->
+    <!--
+        Необходимо системному установщику: без него на Android 8+ (targetSdk >= 26)
+        установка APK через ACTION_VIEW отменяется ещё до показа диалога.
+    -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!--
@@ -32,7 +35,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.RknVpn"
-        android:usesCleartextTraffic="true">
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- APK для обновления лежит в кэше; FileProvider даёт установщику доступ к нему. -->
         <provider
