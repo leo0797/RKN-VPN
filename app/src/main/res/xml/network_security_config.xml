@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Весь внешний трафик только по HTTPS. -->
-    <base-config cleartextTrafficPermitted="false" />
-
-    <!-- Локальный API ядра mihomo слушает на 127.0.0.1 по http. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
+    <!--
+        Подписки бывают и http://, и https://: не все используют свой домен
+        с TLS-сертификатом, поэтому открытый трафик разрешён.
+    -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
