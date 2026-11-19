@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#0B0F1A</color>
+    <!-- Фон adaptive-иконки; совпадает с фоном исходного изображения. -->
+    <color name="ic_launcher_background">#000000</color>
+</resources>
