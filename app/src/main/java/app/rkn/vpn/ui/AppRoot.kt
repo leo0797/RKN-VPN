@@ -154,6 +154,7 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                         state = state,
                         onModeChange = { VpnController.setRoutingMode(it) },
                         onLanDirectChange = { VpnController.setLanDirect(it) },
+                        onAutoSwitchChange = { VpnController.setAutoSwitch(it) },
                         onAddRule = { VpnController.addRule(it) },
                         onDeleteRule = { VpnController.deleteRule(it) }
                     )

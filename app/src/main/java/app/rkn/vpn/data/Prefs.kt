@@ -86,6 +86,14 @@ class Prefs(context: Context) {
             KEY_CHECK_URL, value.trim().takeIf { it.isNotBlank() } ?: DEFAULT_CHECK_URL
         ).apply()
 
+    /**
+     * Если выбранный узел не отвечает, попробовать переключиться на другой
+     * рабочий узел вместо того, чтобы оставлять подключение мёртвым.
+     */
+    var autoSwitch: Boolean
+        get() = sp.getBoolean(KEY_AUTO_SWITCH, true)
+        set(value) = sp.edit().putBoolean(KEY_AUTO_SWITCH, value).apply()
+
     /** Однократное напоминание про системный Always-on VPN. */
     var killSwitchReminderShown: Boolean
         get() = sp.getBoolean(KEY_KILL_SWITCH_REMINDER, false)
@@ -137,6 +145,7 @@ class Prefs(context: Context) {
         private const val KEY_UPDATE_INTERVAL = "update_interval"
         private const val KEY_CHECK_URL = "check_url"
         const val DEFAULT_CHECK_URL = "https://www.gstatic.com/generate_204"
+        private const val KEY_AUTO_SWITCH = "auto_switch"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
         private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"

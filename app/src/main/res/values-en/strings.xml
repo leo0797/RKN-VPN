@@ -159,6 +159,9 @@
     <string name="check_url_help">mihomo requests this URL through the selected node. Defaults to gstatic generate_204.</string>
     <string name="backup_export_warning_title">Export settings</string>
     <string name="backup_export_warning_text">The backup file contains your subscription link and server list in plain text. Store it in a safe place and do not share it.</string>
+    <string name="auto_switch_title">Automatic node switching</string>
+    <string name="auto_switch_subtitle">If the selected node does not respond, try another working node</string>
+    <string name="toast_auto_switched">The node did not respond, switched to %1$s</string>
     <string name="vpn_visibility_note">Android does not allow fully hiding the fact that a VPN is in use from other apps without root access. The app removes common leaks (DNS, IPv6, an open local proxy), but the presence of the VPN interface itself is visible to other apps.</string>
     <string name="import_title">Import</string>
     <string name="import_dialog_text">Paste a subscription link, a YAML/JSON config, or several share links. An http(s) link will be saved as a subscription.</string>
