@@ -1,11 +1,11 @@
-Что нового в 1.0.14:
+Что нового в 1.0.15:
 
-• Снова поддерживаются подписки по http:// и https:// — вернули возможность использовать свой домен без SSL-сертификата.
-• Для загрузки подписок снова разрешён открытый HTTP-трафик; проверка узлов по-прежнему использует HTTPS.
-• Новая release-подпись и обновление через приложение сохранены.
+• Права CI ограничены: сборка и тесты работают только с доступом на чтение, запись в репозиторий есть только у job публикации релиза по тегу.
+• Временный конфиг ядра с паролями локального SOCKS/API и секретами удаляется при остановке и при неудачном запуске.
+• Подписки http:// и https://, подпись APK и обновление через приложение — без изменений.
 
-What's new in 1.0.14:
+What's new in 1.0.15:
 
-• Subscription links work with both http:// and https:// again, so custom domains without TLS certificates are supported.
-• Cleartext HTTP traffic is allowed again for subscription downloads; node checks still use HTTPS.
-• The new release signing and in-app updates are unchanged.
+• CI permissions are restricted: the build and test job is read-only, and only the tag-triggered release job can write to the repository.
+• The temporary core config with local SOCKS/API passwords and outbound secrets is deleted on stop and on failed startup.
+• http:// and https:// subscriptions, APK signing and in-app updates are unchanged.
