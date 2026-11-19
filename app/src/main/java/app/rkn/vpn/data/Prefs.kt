@@ -78,6 +78,14 @@ class Prefs(context: Context) {
         get() = sp.getInt(KEY_UPDATE_INTERVAL, 12)
         set(value) = sp.edit().putInt(KEY_UPDATE_INTERVAL, value).apply()
 
+    /** URL, через который mihomo проверяет доступность outbound'ов. */
+    var checkUrl: String
+        get() = sp.getString(KEY_CHECK_URL, DEFAULT_CHECK_URL)?.takeIf { it.isNotBlank() }
+            ?: DEFAULT_CHECK_URL
+        set(value) = sp.edit().putString(
+            KEY_CHECK_URL, value.trim().takeIf { it.isNotBlank() } ?: DEFAULT_CHECK_URL
+        ).apply()
+
     /** Однократное напоминание про системный Always-on VPN. */
     var killSwitchReminderShown: Boolean
         get() = sp.getBoolean(KEY_KILL_SWITCH_REMINDER, false)
@@ -127,6 +135,8 @@ class Prefs(context: Context) {
         private const val KEY_THEME = "theme"
         private const val KEY_LANGUAGE = "language"
         private const val KEY_UPDATE_INTERVAL = "update_interval"
+        private const val KEY_CHECK_URL = "check_url"
+        const val DEFAULT_CHECK_URL = "https://www.gstatic.com/generate_204"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
         private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"

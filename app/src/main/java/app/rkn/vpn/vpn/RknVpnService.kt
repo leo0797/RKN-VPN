@@ -224,7 +224,10 @@ class RknVpnService : VpnService() {
 
                     val startedAt = System.currentTimeMillis()
                     current.startedAt = startedAt
-                    VpnController.serviceConnected(startedAt, apiPort, credentials.secret)
+                    VpnController.serviceConnected(
+                        startedAt, apiPort, credentials.secret,
+                        mixedPort, credentials.user, credentials.password
+                    )
                     startForegroundCompat(buildNotification(node.name, startedAt))
                     startStats()
                 } catch (t: Throwable) {
@@ -341,7 +344,8 @@ class RknVpnService : VpnService() {
                 if (runCatching { restartCore(current, fd) }.getOrDefault(false)) {
                     recovering = false
                     VpnController.serviceRecovered(
-                        System.currentTimeMillis(), current.apiPort, current.credentials.secret
+                        System.currentTimeMillis(), current.apiPort, current.credentials.secret,
+                        current.mixedPort, current.credentials.user, current.credentials.password
                     )
                     startForegroundCompat(buildNotification(current.nodeName, current.startedAt))
                     startStats()

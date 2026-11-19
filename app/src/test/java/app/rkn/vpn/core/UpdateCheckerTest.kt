@@ -1,5 +1,8 @@
 package app.rkn.vpn.core
 
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,4 +42,48 @@ class UpdateCheckerTest {
         assertTrue(release.apkUrl!!.endsWith(".apk"))
         assertTrue(release.pageUrl.contains("github.com"))
     }
+
+    @Test
+    fun distinguishesUpdateNoUpdateAndFailures() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val url = server.url("/releases/latest").toString()
+
+            server.enqueue(MockResponse().setResponseCode(200).setBody(releaseJson("v9.9.9")))
+            val available = UpdateChecker.checkUrl(url)
+            assertTrue(available is UpdateChecker.Result.Available)
+            assertEquals("9.9.9", (available as UpdateChecker.Result.Available).release.version)
+
+            server.enqueue(MockResponse().setResponseCode(200).setBody(releaseJson("v0.0.1")))
+            assertTrue(UpdateChecker.checkUrl(url) is UpdateChecker.Result.UpToDate)
+
+            server.enqueue(MockResponse().setResponseCode(503).setBody("down"))
+            val serverFailure = UpdateChecker.checkUrl(url) as UpdateChecker.Result.Failed
+            assertEquals(
+                UpdateChecker.Result.Failure.SERVER,
+                serverFailure.reason
+            )
+
+            server.enqueue(MockResponse().setResponseCode(200).setBody("not json"))
+            val malformed = UpdateChecker.checkUrl(url) as UpdateChecker.Result.Failed
+            assertEquals(
+                UpdateChecker.Result.Failure.MALFORMED,
+                malformed.reason
+            )
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    private fun releaseJson(tag: String) = """
+        {
+          "tag_name": "$tag",
+          "body": "changelog",
+          "html_url": "https://github.com/leo0797/RKN-VPN/releases/tag/$tag",
+          "assets": [
+            {"name": "app-arm64-v8a-release.apk", "browser_download_url": "https://example.com/arm64.apk"}
+          ]
+        }
+    """.trimIndent()
 }

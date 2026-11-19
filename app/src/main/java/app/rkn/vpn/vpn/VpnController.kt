@@ -14,8 +14,10 @@ import app.rkn.vpn.R
 import app.rkn.vpn.core.ConfigBuilder
 import app.rkn.vpn.core.ConfigImporter
 import app.rkn.vpn.core.CoreRunner
+import app.rkn.vpn.core.LocalProxy
 import app.rkn.vpn.core.MihomoApi
 import app.rkn.vpn.core.Ping
+import app.rkn.vpn.core.Strings
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.data.RoutingRule
@@ -66,8 +68,22 @@ object VpnController {
     private var watchdogStarted = false
     private var apiPort: Int? = null
     private var apiSecret = ""
+    private var proxyPort: Int? = null
+    private var proxyUser = ""
+    private var proxyPassword = ""
 
     private fun text(id: Int, vararg args: Any): String = appContext?.getString(id, *args) ?: ""
+
+    /**
+     * mixed-port активного ядра. Приложение исключено из своего TUN, поэтому
+     * запросы к панели/GitHub идут напрямую; этот прокси — запасной путь,
+     * когда сеть блокирует нужный домен.
+     */
+    internal fun localProxy(): LocalProxy? {
+        val port = proxyPort ?: return null
+        if (!_state.value.connected) return null
+        return LocalProxy(port, proxyUser, proxyPassword)
+    }
 
     fun init(context: Context) {
         if (prefs != null) return
@@ -89,6 +105,7 @@ object VpnController {
             lanDirect = p.lanDirect,
             splitEnabled = p.splitEnabled,
             splitApps = p.splitApps,
+            checkUrl = p.checkUrl,
             theme = p.theme,
             language = p.language,
             corePresent = CoreRunner(ctx).isAvailable()
@@ -195,9 +212,19 @@ object VpnController {
         refreshTile()
     }
 
-    fun serviceConnected(startedAt: Long, apiPort: Int, apiSecret: String) {
+    fun serviceConnected(
+        startedAt: Long,
+        apiPort: Int,
+        apiSecret: String,
+        mixedPort: Int,
+        proxyUser: String,
+        proxyPassword: String
+    ) {
         this.apiPort = apiPort
         this.apiSecret = apiSecret
+        this.proxyPort = mixedPort
+        this.proxyUser = proxyUser
+        this.proxyPassword = proxyPassword
         _state.update {
             it.copy(
                 connecting = false,
@@ -232,8 +259,9 @@ object VpnController {
             val selected = snapshot.selectedId ?: snapshot.nodes.firstOrNull()?.id ?: return@launch
             val name = ConfigBuilder.proxyNames(snapshot.nodes, snapshot.selectedId)[selected]
                 ?: return@launch
+            val testUrl = prefs?.checkUrl ?: MihomoApi.DEFAULT_TEST_URL
             val latency = withContext(Dispatchers.IO) {
-                MihomoApi.delay(port, apiSecret, name, 6_000)
+                MihomoApi.delay(port, apiSecret, name, 6_000, testUrl)
             }
             if (port != this@VpnController.apiPort) return@launch
             _state.update {
@@ -252,9 +280,19 @@ object VpnController {
         refreshTile()
     }
 
-    fun serviceRecovered(startedAt: Long, apiPort: Int, apiSecret: String) {
+    fun serviceRecovered(
+        startedAt: Long,
+        apiPort: Int,
+        apiSecret: String,
+        mixedPort: Int,
+        proxyUser: String,
+        proxyPassword: String
+    ) {
         this.apiPort = apiPort
         this.apiSecret = apiSecret
+        this.proxyPort = mixedPort
+        this.proxyUser = proxyUser
+        this.proxyPassword = proxyPassword
         _state.update {
             it.copy(reconnecting = false, connected = true, startedAt = startedAt, error = null)
         }
@@ -279,6 +317,9 @@ object VpnController {
     fun serviceStopped() {
         apiPort = null
         apiSecret = ""
+        proxyPort = null
+        proxyUser = ""
+        proxyPassword = ""
         _state.update {
             it.copy(
                 connected = false,
@@ -307,6 +348,9 @@ object VpnController {
         }
         apiPort = null
         apiSecret = ""
+        proxyPort = null
+        proxyUser = ""
+        proxyPassword = ""
         _state.update {
             it.copy(
                 connected = false,
@@ -391,6 +435,7 @@ object VpnController {
         }
         if (healthJob?.isActive == true) return
         val names = ConfigBuilder.proxyNames(state.nodes, state.selectedId)
+        val testUrl = prefs?.checkUrl ?: MihomoApi.DEFAULT_TEST_URL
         _state.update { it.copy(healthChecking = true, error = null) }
         healthJob = scope.launch {
             val results = withContext(Dispatchers.IO) {
@@ -398,7 +443,7 @@ object VpnController {
                     state.nodes.map { node ->
                         async {
                             val name = names[node.id] ?: return@async node.id to null
-                            node.id to MihomoApi.delay(port, apiSecret, name)
+                            node.id to MihomoApi.delay(port, apiSecret, name, testUrl = testUrl)
                         }
                     }.awaitAll()
                 }
@@ -417,6 +462,13 @@ object VpnController {
         _state.update { it.copy(subscriptionUrl = url) }
     }
 
+    /** Адрес, который mihomo запрашивает через выбранный outbound. */
+    fun setCheckUrl(url: String) {
+        val p = requirePrefs()
+        p.checkUrl = url
+        _state.update { it.copy(checkUrl = p.checkUrl) }
+    }
+
     fun refreshSubscription(showToast: Boolean = true) {
         scope.launch { refreshSubscriptionInternal(showToast) }
     }
@@ -431,8 +483,10 @@ object VpnController {
             return false
         }
         _state.update { it.copy(refreshing = true, error = null) }
+        val proxy = localProxy()
+        val strings = Strings { id, args -> text(id, *args) }
         return withContext(Dispatchers.IO) {
-            runCatching { SubscriptionRepository(p).fetch(url) }
+            runCatching { SubscriptionRepository(p, strings).fetch(url, proxy) }
                 .fold(
                     onSuccess = { result ->
                         val oldSelected = p.selectedId
@@ -548,6 +602,7 @@ object VpnController {
             .put("theme", p.theme)
             .put("language", p.language)
             .put("updateIntervalHours", p.updateIntervalHours)
+            .put("checkUrl", p.checkUrl)
             .toString(2)
     }
 
@@ -572,6 +627,7 @@ object VpnController {
             p.theme = obj.optString("theme", "system")
             p.language = obj.optString("language", "system")
             p.updateIntervalHours = obj.optInt("updateIntervalHours", 12).coerceIn(1, 168)
+            p.checkUrl = obj.optString("checkUrl", Prefs.DEFAULT_CHECK_URL)
         }
         if (restored.isFailure) {
             _state.update {
@@ -594,6 +650,7 @@ object VpnController {
                 lanDirect = p.lanDirect,
                 splitEnabled = p.splitEnabled,
                 splitApps = p.splitApps,
+                checkUrl = p.checkUrl,
                 theme = p.theme,
                 language = p.language,
                 latencies = emptyMap(),

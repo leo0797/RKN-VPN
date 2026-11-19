@@ -1,15 +1,17 @@
-Что нового в 1.0.16:
+Что нового в 1.0.17:
 
-• Бинарники ядра (mihomo и hev-socks5-tunnel) проверяются по зафиксированным SHA-256 — и после загрузки, и из кэша. Подменённый файл приведёт к ошибке сборки.
-• При падении ядра или tun2socks TUN больше не закрывается сразу: приложение делает до 5 попыток перезапуска с задержкой 1–16 с, и всё это время трафик не уходит мимо VPN. Если восстановить не удалось, показывается уведомление об ошибке.
-• После подключения выбранный узел проверяется через API ядра; если он не отвечает, на главном экране появляется соответствующая надпись.
-• Намерение пользователя включить VPN переживает перезапуск процесса; после отзыва разрешения или ручного отключения автоподключение не возвращается.
-• Конфиг tun2socks с паролем сессии удаляется при остановке. Исправлено предупреждение об остатке трафика.
+• Подписки загружаются надёжнее: один запрос с ручными редиректами (до 5), лимит ответа 2 МБ, поддержка Clash YAML и SIP008 наряду со share-ссылками. Вместо шести слепых повторов — понятные локализованные ошибки и повтор через локальный прокси ядра, если сеть блокирует панель.
+• Проверка обновлений теперь различает «актуальная версия», «нет сети», «ошибка сервера» и «некорректный ответ», с кнопкой «Повторить». Проверка и скачивание APK могут идти через тот же локальный прокси.
+• В настройках можно задать адрес проверки узла (по умолчанию gstatic generate_204).
+• Во время подключения кнопка на главном экране отменяет его; кнопка доступна для скринридеров.
+• Перед экспортом бэкапа показывается предупреждение: файл содержит ссылку на подписку и список серверов в открытом виде.
+• Все новые сообщения об ошибках переведены на RU/EN; добавлены тесты загрузки подписки и проверки обновлений (38 тестов всего).
 
-What's new in 1.0.16:
+What's new in 1.0.17:
 
-• Core binaries (mihomo and hev-socks5-tunnel) are verified against pinned SHA-256 hashes, both after download and when cached. A tampered file fails the build.
-• If the core or tun2socks dies, the TUN stays open: up to 5 restarts with 1–16 s backoff keep traffic from leaking, followed by an error notification if recovery fails.
-• The selected node is checked through the core API after connecting; the home screen reports it when the node does not respond.
-• The user's intent to keep VPN on survives process death; revoking permission or disconnecting manually prevents auto-reconnect.
-• The tun2socks config with session credentials is deleted on stop. Fixed the low-traffic warning text.
+• Subscriptions load more reliably: a single request with manual redirects (up to 5), a 2 MB response cap, and support for Clash YAML and SIP008 alongside share links. Instead of six blind retries, you get clear localized errors and a fallback through the core's local proxy if the network blocks the panel.
+• Update checks now distinguish "up to date", "no connection", "server error" and "invalid response", with a Retry button. Both the check and the APK download can go through the same local proxy.
+• The node check URL is configurable in settings (defaults to gstatic generate_204).
+• Tapping the home screen button during connecting now cancels it; the button is screen-reader accessible.
+• A warning appears before exporting a backup: the file contains the subscription link and server list in plain text.
+• All new error messages are localized in RU/EN; subscription and update tests were added (38 tests total).

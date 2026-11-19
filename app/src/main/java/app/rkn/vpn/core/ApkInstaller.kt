@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import app.rkn.vpn.BuildConfig
+import app.rkn.vpn.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -58,8 +59,12 @@ object ApkInstaller {
         context: Context,
         url: String,
         version: String,
-        onProgress: (Int) -> Unit
+        onProgress: (Int) -> Unit,
+        proxy: LocalProxy? = null,
+        strings: Strings? = null
     ): File = withContext(Dispatchers.IO) {
+        fun message(id: Int, vararg args: Any): String =
+            strings?.get(id, *args) ?: context.getString(id, *args)
         cached(context, version)?.let {
             withContext(Dispatchers.Main) { onProgress(100) }
             return@withContext it
@@ -68,7 +73,12 @@ object ApkInstaller {
         val dir = updateDir(context)
         val target = File(dir, "$PREFIX$version.apk")
         val temp = File(dir, "$PREFIX$version.apk.part")
-        val connection = URL(url).openConnection() as HttpURLConnection
+        val targetUrl = URL(url)
+        val connection = if (proxy != null) {
+            proxy.open(targetUrl)
+        } else {
+            targetUrl.openConnection() as HttpURLConnection
+        }
         connection.requestMethod = "GET"
         connection.connectTimeout = 15_000
         connection.readTimeout = 30_000
@@ -78,7 +88,7 @@ object ApkInstaller {
         connection.setRequestProperty("User-Agent", "RKN-VPN/${BuildConfig.VERSION_NAME}")
         try {
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                error("HTTP ${connection.responseCode}")
+                error(message(R.string.error_download_http, connection.responseCode))
             }
             val total = connection.contentLength
             val buffer = ByteArray(BUFFER_SIZE)
@@ -101,12 +111,14 @@ object ApkInstaller {
                     }
                 }
             }
-            if (written < MIN_APK_SIZE) error("APK too small")
-            if (total > 0 && written != total.toLong()) error("incomplete download")
-            if (!isValidApk(temp)) error("invalid APK file")
+            if (written < MIN_APK_SIZE) error(message(R.string.error_download_too_small))
+            if (total > 0 && written != total.toLong()) {
+                error(message(R.string.error_download_incomplete))
+            }
+            if (!isValidApk(temp)) error(message(R.string.error_download_invalid))
             if (!temp.renameTo(target)) {
                 target.delete()
-                if (!temp.renameTo(target)) error("cannot save APK")
+                if (!temp.renameTo(target)) error(message(R.string.error_download_save))
             }
             target
         } finally {

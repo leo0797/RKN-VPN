@@ -47,6 +47,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,7 +137,9 @@ fun HomeScreen(
         ConnectArea(
             connected = state.connected,
             connecting = state.connecting,
-            onClick = { if (state.connected) onDisconnect() else onConnect() }
+            onClick = {
+                if (state.connected || state.connecting) onDisconnect() else onConnect()
+            }
         )
         Spacer(Modifier.height(18.dp))
 
@@ -371,6 +377,12 @@ fun HomeScreen(
 @Composable
 private fun ConnectArea(connected: Boolean, connecting: Boolean, onClick: () -> Unit) {
     val primary = MaterialTheme.colorScheme.primary
+    // Во время подключения тап отменяет его, поэтому и подпись, и роль — «Отмена».
+    val label = when {
+        connecting -> stringResource(R.string.cancel)
+        connected -> stringResource(R.string.disconnect)
+        else -> stringResource(R.string.connect)
+    }
     val transition = rememberInfiniteTransition(label = "pulse")
     val pulse by transition.animateFloat(
         initialValue = 1f,
@@ -414,7 +426,11 @@ private fun ConnectArea(connected: Boolean, connecting: Boolean, onClick: () -> 
                     color = if (connected) primary else MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .size(154.dp)
-                        .clickable(enabled = !connecting, onClick = onClick)
+                        .clickable(onClick = onClick)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = label
+                        }
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -441,11 +457,7 @@ private fun ConnectArea(connected: Boolean, connecting: Boolean, onClick: () -> 
                         }
                         Spacer(Modifier.height(8.dp))
                         SingleLineLabel(
-                            text = when {
-                                connecting -> stringResource(R.string.connecting)
-                                connected -> stringResource(R.string.disconnect)
-                                else -> stringResource(R.string.connect)
-                            },
+                            text = label,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
