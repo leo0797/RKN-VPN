@@ -192,6 +192,8 @@
 
     <string name="error_no_subscription">Сначала добавьте подписку и выберите сервер</string>
     <string name="error_no_core">В APK нет ядра mihomo. Пересоберите приложение через GitHub Actions.</string>
+    <string name="error_core_exited">mihomo завершился при запуске.\n%1$s</string>
+    <string name="error_core_timeout">mihomo не успел запуститься за %1$d с.\n%2$s</string>
     <string name="error_start_vpn">Не удалось запустить VPN: %1$s</string>
     <string name="error_vpn_permission">Без разрешения Android VPN подключение невозможно</string>
     <string name="error_restart_vpn">Не удалось перезапустить VPN: %1$s</string>

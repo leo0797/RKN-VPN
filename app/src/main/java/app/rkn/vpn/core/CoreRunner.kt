@@ -1,6 +1,7 @@
 package app.rkn.vpn.core
 
 import android.content.Context
+import app.rkn.vpn.R
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -32,7 +33,7 @@ class CoreRunner(context: Context) {
     fun start(configJson: String, readyPort: Int) {
         stop()
         if (!isAvailable()) {
-            error("Ядро mihomo не найдено в APK. Пересоберите приложение (см. README).")
+            error(appContext.getString(R.string.error_no_core))
         }
         workDir.mkdirs()
         configFile.writeText(configJson, Charsets.UTF_8)
@@ -54,13 +55,19 @@ class CoreRunner(context: Context) {
             val proc = process ?: break
             if (!proc.isAlive) {
                 stop()
-                error("mihomo завершился при запуске.\n${logTail(25)}")
+                error(appContext.getString(R.string.error_core_exited, logTail(25)))
             }
             if (canConnect(readyPort)) return
             Thread.sleep(200)
         }
         stop()
-        error("mihomo не успел запуститься за ${READY_TIMEOUT_MS / 1000} с.\n${logTail(25)}")
+        error(
+            appContext.getString(
+                R.string.error_core_timeout,
+                READY_TIMEOUT_MS / 1000,
+                logTail(25)
+            )
+        )
     }
 
     fun stop() {

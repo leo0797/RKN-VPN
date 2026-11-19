@@ -1,7 +1,11 @@
-Что нового в 1.0.18:
+Что нового в 1.0.19:
 
-• Если выбранный узел не отвечает, приложение проверяет до трёх запасных узлов через API ядра и переключается на первый рабочий. В настройках маршрутизации появился включатель «Автопереключение узла». Чтобы не было циклов, каждый узел проверяется не более одного раза до явного отключения или смены узла вручную.
+• Диалог разрешения уведомлений больше не появляется при первом запуске: он показывается после первого успешного подключения и только один раз.
+• Сообщения об ошибках ядра mihomo переведены на RU/EN. В английском интерфейсе больше не встречается русский текст, а к сообщению прикладывается лог ядра.
+• Добавлены SECURITY.md с правилами сообщения об уязвимостях и Dependabot для еженедельного обновления Gradle-зависимостей и GitHub Actions.
 
-What's new in 1.0.18:
+What's new in 1.0.19:
 
-• If the selected node does not respond, the app checks up to three fallback nodes through the core API and switches to the first working one. A new "Automatic node switching" toggle is available in routing settings. Each node is tried at most once until you disconnect or pick a node manually, so there are no loops.
+• The notification permission dialog no longer appears on first launch: it is shown after the first successful connection, once.
+• mihomo core errors are localized in RU/EN. No more Russian text in the English UI, and the core log is attached to the message.
+• Added SECURITY.md with vulnerability reporting rules and Dependabot for weekly Gradle and GitHub Actions updates.
