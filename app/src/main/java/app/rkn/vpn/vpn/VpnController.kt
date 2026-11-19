@@ -75,6 +75,7 @@ object VpnController {
         appContext = ctx
         val p = Prefs(ctx)
         prefs = p
+        wantConnected = p.vpnWanted
         val nodes = p.nodes
         val selected = p.selectedId?.takeIf { id -> nodes.any { it.id == id } }
             ?: nodes.firstOrNull()?.id
@@ -97,6 +98,9 @@ object VpnController {
 
     private fun requirePrefs(): Prefs = prefs ?: error("VpnController не инициализирован")
 
+    /** Сервис спрашивает перед START_STICKY-перезапуском с пустым intent. */
+    fun isWanted(): Boolean = wantConnected
+
     // ------------------------------------------------------------ connection
 
     fun connect(context: Context? = appContext) {
@@ -113,12 +117,19 @@ object VpnController {
             return
         }
         wantConnected = true
+        prefs?.vpnWanted = true
         val intent = Intent(ctx, RknVpnService::class.java)
             .setAction(RknVpnService.ACTION_START)
         runCatching {
             ContextCompat.startForegroundService(ctx, intent)
-            _state.update { it.copy(connecting = true, connected = false, error = null) }
+            _state.update {
+                it.copy(connecting = true, connected = false, reconnecting = false, error = null)
+            }
         }.onFailure { e ->
+            // Не оставляем «хочу подключения» после неудачного запуска, иначе
+            // watchdog попытается включить VPN ещё раз без команды пользователя.
+            wantConnected = false
+            prefs?.vpnWanted = false
             _state.update { it.copy(error = text(R.string.error_start_vpn, e.message ?: "")) }
         }
     }
@@ -126,14 +137,19 @@ object VpnController {
     fun disconnect(context: Context? = appContext) {
         val ctx = context ?: return
         wantConnected = false
+        prefs?.vpnWanted = false
+        reconnectJob?.cancel()
+        autoReconnectJob?.cancel()
+        healthJob?.cancel()
         val intent = Intent(ctx, RknVpnService::class.java)
             .setAction(RknVpnService.ACTION_STOP)
         runCatching { ctx.startService(intent) }
-        _state.update { it.copy(connecting = false) }
+        _state.update { it.copy(connecting = false, reconnecting = false, nodeReachable = null) }
     }
 
     fun onPermissionDenied() {
         wantConnected = false
+        prefs?.vpnWanted = false
         _state.update { it.copy(error = text(R.string.error_vpn_permission)) }
     }
 
@@ -158,11 +174,15 @@ object VpnController {
      */
     private fun restartService() {
         val ctx = appContext ?: return
+        wantConnected = true
+        prefs?.vpnWanted = true
         val intent = Intent(ctx, RknVpnService::class.java)
             .setAction(RknVpnService.ACTION_START)
         runCatching {
             ctx.startService(intent)
-            _state.update { it.copy(connecting = true, connected = false, error = null) }
+            _state.update {
+                it.copy(connecting = true, connected = false, reconnecting = false, error = null)
+            }
         }.onFailure { e ->
             _state.update { it.copy(error = text(R.string.error_restart_vpn, e.message ?: "")) }
         }
@@ -182,6 +202,7 @@ object VpnController {
             it.copy(
                 connecting = false,
                 connected = true,
+                reconnecting = false,
                 startedAt = startedAt,
                 upload = 0L,
                 download = 0L,
@@ -189,11 +210,56 @@ object VpnController {
                 downSpeed = 0L,
                 healthLatencies = emptyMap(),
                 healthAvailable = true,
+                nodeReachable = null,
                 error = null
             )
         }
         refreshTile()
         maybeShowKillSwitchReminder()
+        checkSelectedNode()
+    }
+
+    /**
+     * Старт hev и TUN ещё не означает, что узел жив. Проверяем выбранный
+     * outbound через API ядра, чтобы не показывать «защищено» при мёртвом узле.
+     */
+    private fun checkSelectedNode() {
+        healthJob?.cancel()
+        healthJob = scope.launch {
+            delay(1_500)
+            val port = apiPort ?: return@launch
+            val snapshot = _state.value
+            val selected = snapshot.selectedId ?: snapshot.nodes.firstOrNull()?.id ?: return@launch
+            val name = ConfigBuilder.proxyNames(snapshot.nodes, snapshot.selectedId)[selected]
+                ?: return@launch
+            val latency = withContext(Dispatchers.IO) {
+                MihomoApi.delay(port, apiSecret, name, 6_000)
+            }
+            if (port != this@VpnController.apiPort) return@launch
+            _state.update {
+                it.copy(
+                    nodeReachable = latency != null,
+                    healthLatencies = if (latency != null) mapOf(selected to latency) else emptyMap(),
+                    toast = if (latency == null) text(R.string.toast_node_unreachable) else it.toast
+                )
+            }
+        }
+    }
+
+    /** Кратковременный сбой ядра: TUN не закрываем, трафик не уходит напрямую. */
+    fun serviceRecovering() {
+        _state.update { it.copy(reconnecting = true, connected = true, nodeReachable = null) }
+        refreshTile()
+    }
+
+    fun serviceRecovered(startedAt: Long, apiPort: Int, apiSecret: String) {
+        this.apiPort = apiPort
+        this.apiSecret = apiSecret
+        _state.update {
+            it.copy(reconnecting = false, connected = true, startedAt = startedAt, error = null)
+        }
+        refreshTile()
+        checkSelectedNode()
     }
 
     /** Однократное вежливое напоминание после первого успешного подключения. */
@@ -217,6 +283,8 @@ object VpnController {
             it.copy(
                 connected = false,
                 connecting = false,
+                reconnecting = false,
+                nodeReachable = null,
                 startedAt = 0L,
                 upload = 0L,
                 download = 0L,
@@ -228,14 +296,23 @@ object VpnController {
         refreshTile()
     }
 
-    fun serviceError(message: String) {
-        wantConnected = false
+    /**
+     * @param fatal false для временных сбоев, когда TUN ещё открыт и ядро
+     * перезапускается: в этом случае намерение пользователя сохраняем.
+     */
+    fun serviceError(message: String, fatal: Boolean = true) {
+        if (fatal) {
+            wantConnected = false
+            prefs?.vpnWanted = false
+        }
         apiPort = null
         apiSecret = ""
         _state.update {
             it.copy(
                 connected = false,
                 connecting = false,
+                reconnecting = false,
+                nodeReachable = null,
                 error = message,
                 startedAt = 0L,
                 healthAvailable = false

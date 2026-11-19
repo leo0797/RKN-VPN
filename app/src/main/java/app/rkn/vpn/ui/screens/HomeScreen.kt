@@ -101,12 +101,15 @@ fun HomeScreen(
                 )
                 Text(
                     text = when {
+                        state.reconnecting -> stringResource(R.string.status_reconnecting)
+                        state.connected && state.nodeReachable == false ->
+                            stringResource(R.string.status_node_unreachable)
                         state.connected -> stringResource(R.string.status_connected)
                         state.connecting -> stringResource(R.string.status_connecting)
                         else -> stringResource(R.string.status_disconnected)
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (state.connected) {
+                    color = if (state.connected && state.nodeReachable != false) {
                         MaterialTheme.colorScheme.secondary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant

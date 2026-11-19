@@ -58,6 +58,10 @@ data class SubscriptionInfo(
 data class AppState(
     val connected: Boolean = false,
     val connecting: Boolean = false,
+    /** Ядро/hev перезапускаются без закрытия TUN: трафик пока теряется, а не уходит напрямую. */
+    val reconnecting: Boolean = false,
+    /** Результат проверки выбранного узла через API ядра: null — ещё не проверяли. */
+    val nodeReachable: Boolean? = null,
     val error: String? = null,
     val startedAt: Long = 0L,
     val upload: Long = 0L,

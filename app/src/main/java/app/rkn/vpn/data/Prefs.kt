@@ -83,6 +83,15 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_KILL_SWITCH_REMINDER, false)
         set(value) = sp.edit().putBoolean(KEY_KILL_SWITCH_REMINDER, value).apply()
 
+    /**
+     * Намерение пользователя держать VPN включённым. Хранится на диске, чтобы
+     * START_STICKY после смерти процесса не включал трафик против воли пользователя
+     * и, наоборот, мог восстановить подключение, которое он включал.
+     */
+    var vpnWanted: Boolean
+        get() = sp.getBoolean(KEY_VPN_WANTED, false)
+        set(value) = sp.edit().putBoolean(KEY_VPN_WANTED, value).apply()
+
     /** Стабильный HWID для Remnawave (10–64 символа, [a-zA-Z0-9=-]). */
     val hwid: String
         get() {
@@ -119,6 +128,7 @@ class Prefs(context: Context) {
         private const val KEY_LANGUAGE = "language"
         private const val KEY_UPDATE_INTERVAL = "update_interval"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
+        private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"
         private const val KEY_LAST_REFRESH = "last_refresh"
         private val HWID_REGEX = Regex("^[a-zA-Z0-9=-]{10,64}$")
