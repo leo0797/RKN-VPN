@@ -51,6 +51,7 @@ import app.rkn.vpn.ui.components.LetterAvatar
 import app.rkn.vpn.ui.components.PingChip
 import app.rkn.vpn.ui.components.ProtocolBadge
 import app.rkn.vpn.ui.components.ScreenHeader
+import app.rkn.vpn.ui.components.SingleLineLabel
 
 @Composable
 fun ServersScreen(
@@ -142,7 +143,7 @@ fun ServersScreen(
             FilterChip(
                 selected = sortByPing,
                 onClick = { sortByPing = !sortByPing },
-                label = { Text(stringResource(R.string.sort_by_ping)) }
+                label = { SingleLineLabel(text = stringResource(R.string.sort_by_ping)) }
             )
         }
 

@@ -51,12 +51,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.rkn.vpn.R
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.PingChip
 import app.rkn.vpn.ui.components.ProtocolBadge
 import app.rkn.vpn.ui.components.SectionCard
+import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.ui.components.StatTile
 import app.rkn.vpn.util.Format
 import kotlinx.coroutines.delay
@@ -435,20 +437,23 @@ private fun ConnectArea(connected: Boolean, connecting: Boolean, onClick: () -> 
                             )
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text(
+                        SingleLineLabel(
                             text = when {
                                 connecting -> stringResource(R.string.connecting)
                                 connected -> stringResource(R.string.disconnect)
                                 else -> stringResource(R.string.connect)
                             },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            ),
                             color = if (connected) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp)
                         )
                     }
                 }

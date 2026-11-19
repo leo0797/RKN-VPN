@@ -50,6 +50,7 @@ import app.rkn.vpn.ui.components.LabeledSwitch
 import app.rkn.vpn.ui.components.LetterAvatar
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SectionCard
+import app.rkn.vpn.ui.components.SingleLineLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.Collator
@@ -136,13 +137,13 @@ fun AppsScreen(
                 FilterChip(
                     selected = onlySelected,
                     onClick = { onlySelected = !onlySelected },
-                    label = { Text(stringResource(R.string.only_selected)) }
+                    label = { SingleLineLabel(text = stringResource(R.string.only_selected)) }
                 )
                 Spacer(Modifier.width(8.dp))
                 FilterChip(
                     selected = includeSystem,
                     onClick = { includeSystem = !includeSystem },
-                    label = { Text(stringResource(R.string.system_apps)) }
+                    label = { SingleLineLabel(text = stringResource(R.string.system_apps)) }
                 )
                 Spacer(Modifier.weight(1f))
                 TextButton(

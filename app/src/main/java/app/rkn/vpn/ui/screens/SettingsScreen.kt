@@ -48,6 +48,7 @@ import app.rkn.vpn.ui.QrScanActivity
 import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SectionCard
+import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.vpn.VpnController
 import kotlinx.coroutines.launch
 
@@ -228,7 +229,7 @@ fun SettingsScreen(
                         FilterChip(
                             selected = state.theme == value,
                             onClick = { onThemeChange(value) },
-                            label = { Text(label) }
+                            label = { SingleLineLabel(text = label) }
                         )
                     }
                 }
@@ -242,7 +243,7 @@ fun SettingsScreen(
                         FilterChip(
                             selected = state.language == value,
                             onClick = { VpnController.setLanguage(value) },
-                            label = { Text(label) }
+                            label = { SingleLineLabel(text = label) }
                         )
                     }
                 }

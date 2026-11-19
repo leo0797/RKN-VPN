@@ -51,6 +51,7 @@ import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.LabeledSwitch
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SectionCard
+import app.rkn.vpn.ui.components.SingleLineLabel
 import java.util.UUID
 
 private val RULE_TYPES = listOf(
@@ -93,12 +94,12 @@ fun RoutingScreen(
                         FilterChip(
                             selected = state.routingMode == "rules",
                             onClick = { onModeChange("rules") },
-                            label = { Text(stringResource(R.string.mode_rules)) }
+                            label = { SingleLineLabel(text = stringResource(R.string.mode_rules)) }
                         )
                         FilterChip(
                             selected = state.routingMode == "global",
                             onClick = { onModeChange("global") },
-                            label = { Text(stringResource(R.string.mode_global)) }
+                            label = { SingleLineLabel(text = stringResource(R.string.mode_global)) }
                         )
                     }
                     Spacer(Modifier.height(8.dp))
@@ -284,7 +285,12 @@ private fun AddRuleDialog(
                                 FilterChip(
                                     selected = type == item,
                                     onClick = { type = item },
-                                    label = { Text(item, style = MaterialTheme.typography.labelSmall) }
+                                    label = {
+                                        SingleLineLabel(
+                                            text = item,
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
                                 )
                             }
                         }
@@ -317,12 +323,12 @@ private fun AddRuleDialog(
                     FilterChip(
                         selected = target == RuleTarget.DIRECT,
                         onClick = { target = RuleTarget.DIRECT },
-                        label = { Text(stringResource(R.string.direct)) }
+                        label = { SingleLineLabel(text = stringResource(R.string.direct)) }
                     )
                     FilterChip(
                         selected = target == RuleTarget.PROXY,
                         onClick = { target = RuleTarget.PROXY },
-                        label = { Text(stringResource(R.string.through_vpn)) }
+                        label = { SingleLineLabel(text = stringResource(R.string.through_vpn)) }
                     )
                 }
             }

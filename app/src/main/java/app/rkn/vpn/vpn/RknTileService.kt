@@ -87,8 +87,11 @@ class RknTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.label = getString(R.string.app_name)
             tile.subtitle = when {
-                state.connected -> node?.name?.let {
-                    getString(R.string.tile_connected, it)
+                state.connected -> node?.name?.let { name ->
+                    // SystemUI сам переносит длинные подписи плитки, иногда по буквам.
+                    // Ограничиваем имя узла, чтобы подпись оставалась компактной.
+                    val shortName = if (name.length > 18) name.take(17) + "…" else name
+                    getString(R.string.tile_connected, shortName)
                 } ?: getString(R.string.tile_connected_short)
                 state.connecting -> getString(R.string.tile_connecting)
                 state.error != null -> getString(R.string.tile_error)

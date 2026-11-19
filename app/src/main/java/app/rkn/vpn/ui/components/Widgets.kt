@@ -37,11 +37,43 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.rkn.vpn.R
+
+/**
+ * Короткая подпись под иконкой или в компактном элементе (таб, чип, бейдж).
+ * Всегда остаётся в одну строку: слово не разбивается по буквам и не
+ * дефисируется автоматически, а при нехватке места обрезается многоточием.
+ */
+@Composable
+fun SingleLineLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.labelSmall,
+    color: Color = Color.Unspecified,
+    textAlign: TextAlign? = null
+) {
+    Text(
+        text = text,
+        modifier = modifier,
+        style = style.copy(
+            hyphens = Hyphens.None,
+            lineBreak = LineBreak.Heading
+        ),
+        color = color,
+        textAlign = textAlign,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis
+    )
+}
 
 @Composable
 fun ScreenHeader(
@@ -173,20 +205,19 @@ fun StatTile(
         color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text(
+            SingleLineLabel(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(2.dp))
-            Text(
+            SingleLineLabel(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = accent ?: MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                fontSize = 17.sp
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp
+                ),
+                color = accent ?: MaterialTheme.colorScheme.onSurface
             )
         }
     }

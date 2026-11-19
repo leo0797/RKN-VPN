@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -13,7 +14,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,7 +21,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rkn.vpn.R
+import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.ui.screens.AppsScreen
 import app.rkn.vpn.ui.screens.HomeScreen
 import app.rkn.vpn.ui.screens.RoutingScreen
@@ -103,20 +103,18 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                                 )
                             },
                             label = {
-                                // Пять пунктов на узких экранах: подпись должна
-                                // оставаться в одну строку, иначе «Приложения»
-                                // переносится как «Приложен-ия».
-                                Text(
+                                // Пять пунктов на узких экранах: подпись всегда одна
+                                // строка. WordBreak/Hyphens заданы в SingleLineLabel,
+                                // чтобы «Приложения» не превращалось в «Приложен-ия».
+                                SingleLineLabel(
                                     text = stringResource(item.labelRes),
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontSize = 10.5.sp,
                                         lineHeight = 13.sp,
                                         letterSpacing = 0.sp
                                     ),
-                                    maxLines = 1,
-                                    softWrap = false,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.wrapContentWidth(unbounded = true)
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         )
