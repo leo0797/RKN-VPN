@@ -63,11 +63,15 @@ class CoreRunner(context: Context) {
     }
 
     fun stop() {
-        val proc = process ?: return
+        val proc = process
         process = null
-        runCatching { proc.destroy() }
-        runCatching { proc.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) }
-        if (proc.isAlive) runCatching { proc.destroyForcibly() }
+        if (proc != null) {
+            runCatching { proc.destroy() }
+            runCatching { proc.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) }
+            if (proc.isAlive) runCatching { proc.destroyForcibly() }
+        }
+        // Конфиг содержит SOCKS/API credentials и секреты outbound-узлов.
+        runCatching { configFile.delete() }
     }
 
     fun logTail(maxLines: Int = 120): String {
