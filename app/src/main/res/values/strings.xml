@@ -195,7 +195,15 @@
     <string name="error_tun2socks">Не удалось запустить tun2socks (hev-socks5-tunnel)</string>
     <string name="error_unknown_connection">Неизвестная ошибка подключения</string>
     <string name="error_core_lost">Соединение с ядром потеряно. Подключите VPN заново.</string>
-    <string name="warning_low_traffic">Осталось менее 10%% трафика</string>
+    <string name="status_reconnecting">Переподключение… трафик временно заблокирован</string>
+    <string name="status_node_unreachable">Подключено, но выбранный узел не отвечает</string>
+    <string name="toast_reconnecting">Ядро перезапускается, трафик не уходит напрямую</string>
+    <string name="toast_node_unreachable">Выбранный узел не отвечает. Попробуйте другой сервер.</string>
+    <string name="notification_reconnecting">Переподключение: %1$s</string>
+    <string name="notification_error_title">RKN VPN: ошибка подключения</string>
+    <string name="error_channel_name">Ошибки подключения</string>
+    <string name="error_channel_description">Сбои ядра и туннеля, требующие внимания</string>
+    <string name="warning_low_traffic">Осталось менее %1$d%% трафика</string>
     <string name="warning_expiry">Подписка истекает через %1$d дн.</string>
     <string name="notification_subscription_title">RKN VPN: подписка</string>
     <string name="warning_channel_name">Подписка</string>

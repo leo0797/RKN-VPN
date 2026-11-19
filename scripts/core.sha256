@@ -1,0 +1,6 @@
+# SHA-256 распакованных бинарников, которые скачивают fetch-core.sh / fetch-core.ps1.
+# Хеши получены из upstream-релизов mihomo v1.19.34 и hev-socks5-tunnel 2.19.3.
+# При смене версии обновите и версии в скриптах, и этот файл.
+1369bebba2b7a6fe971fe6ece0cb5aa18c81e49c89dd8340f43e5e7583d3da36  app/src/main/jniLibs/arm64-v8a/libmihomo.so
+5047466f174206ef718a505f09652ca8f17c1f126c4a60639dc1208be990c58d  app/src/main/jniLibs/armeabi-v7a/libmihomo.so
+ab6c581e6157680cfe5687ee7bbdcf95405c006c2db3701879ec44b9e5f83836  app/libs/hev-socks5-tunnel.aar

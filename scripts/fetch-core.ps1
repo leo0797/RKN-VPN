@@ -11,21 +11,54 @@ $libs = Join-Path $root "app\libs"
 $jni = Join-Path $root "app\src\main\jniLibs"
 $arm64 = Join-Path $jni "arm64-v8a"
 $armv7 = Join-Path $jni "armeabi-v7a"
+$manifestPath = Join-Path $PSScriptRoot "core.sha256"
 
 New-Item -ItemType Directory -Force -Path $libs, $arm64, $armv7 | Out-Null
 
+$expectedHashes = @{}
+foreach ($line in Get-Content -LiteralPath $manifestPath) {
+    if ($line -match '^\s*([0-9a-fA-F]{64})\s+(\S+)\s*$') {
+        $expectedHashes[$Matches[2]] = $Matches[1].ToLowerInvariant()
+    }
+}
+
+# Проверяем и свежескачанные, и уже лежащие на диске файлы: кэш не должен
+# позволять собирать APK с подменённым ядром.
+function Test-ArtifactHash {
+    param([string]$RelativePath, [string]$Path)
+
+    if (-not $expectedHashes.ContainsKey($RelativePath)) {
+        throw "Нет SHA-256 для $RelativePath в scripts/core.sha256"
+    }
+    if ((-not (Test-Path -LiteralPath $Path)) -or (Get-Item -LiteralPath $Path).Length -eq 0) {
+        return $false
+    }
+    $expected = $expectedHashes[$RelativePath]
+    $actual = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) {
+        Write-Warning "SHA-256 не совпал для $RelativePath`: ожидалось $expected, получено $actual"
+        Remove-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+        return $false
+    }
+    return $true
+}
+
+$hevRel = "app/libs/hev-socks5-tunnel.aar"
 $aar = Join-Path $libs "hev-socks5-tunnel.aar"
-if (-not (Test-Path $aar) -or (Get-Item $aar).Length -eq 0) {
+if (-not (Test-ArtifactHash -RelativePath $hevRel -Path $aar)) {
     Write-Host "==> hev-socks5-tunnel $hevVersion"
     Invoke-WebRequest `
         "https://github.com/heiher/hev-socks5-tunnel/releases/download/$hevVersion/hev-socks5-tunnel.aar" `
         -OutFile $aar
+    if (-not (Test-ArtifactHash -RelativePath $hevRel -Path $aar)) {
+        throw "SHA-256 не совпал для hev-socks5-tunnel.aar"
+    }
 }
 
 function Get-Mihomo {
-    param([string]$Abi, [string]$Asset, [string]$Out)
+    param([string]$Abi, [string]$Asset, [string]$RelativePath, [string]$Out)
 
-    if ((Test-Path $Out) -and (Get-Item $Out).Length -gt 0) {
+    if (Test-ArtifactHash -RelativePath $RelativePath -Path $Out) {
         Write-Host "    $Abi already present"
         return
     }
@@ -51,12 +84,17 @@ function Get-Mihomo {
     } finally {
         Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     }
+    if (-not (Test-ArtifactHash -RelativePath $RelativePath -Path $Out)) {
+        throw "SHA-256 не совпал для $RelativePath"
+    }
 }
 
 Write-Host "==> mihomo $mihomoVersion"
 Get-Mihomo -Abi "arm64-v8a" -Asset "mihomo-android-arm64-v8-$mihomoVersion.gz" `
+    -RelativePath "app/src/main/jniLibs/arm64-v8a/libmihomo.so" `
     -Out (Join-Path $arm64 "libmihomo.so")
 Get-Mihomo -Abi "armeabi-v7a" -Asset "mihomo-android-armv7-$mihomoVersion.gz" `
+    -RelativePath "app/src/main/jniLibs/armeabi-v7a/libmihomo.so" `
     -Out (Join-Path $armv7 "libmihomo.so")
 
 Write-Host "==> Done"

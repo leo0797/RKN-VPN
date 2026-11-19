@@ -195,7 +195,15 @@
     <string name="error_tun2socks">Unable to start tun2socks (hev-socks5-tunnel)</string>
     <string name="error_unknown_connection">Unknown connection error</string>
     <string name="error_core_lost">Connection to the core was lost. Reconnect the VPN.</string>
-    <string name="warning_low_traffic">Less than 10%% of traffic remains</string>
+    <string name="status_reconnecting">Reconnecting… traffic is blocked for now</string>
+    <string name="status_node_unreachable">Connected, but the selected node is not responding</string>
+    <string name="toast_reconnecting">Restarting the core; traffic is not leaking to the network</string>
+    <string name="toast_node_unreachable">The selected node is not responding. Try another server.</string>
+    <string name="notification_reconnecting">Reconnecting: %1$s</string>
+    <string name="notification_error_title">RKN VPN: connection error</string>
+    <string name="error_channel_name">Connection errors</string>
+    <string name="error_channel_description">Core and tunnel failures that need attention</string>
+    <string name="warning_low_traffic">Less than %1$d%% of traffic remains</string>
     <string name="warning_expiry">Subscription expires in %1$d days</string>
     <string name="notification_subscription_title">RKN VPN: subscription</string>
     <string name="warning_channel_name">Subscription</string>

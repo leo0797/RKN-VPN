@@ -45,9 +45,12 @@ class RknVpnService : VpnService() {
 
         private const val CHANNEL_ID = "vpn_status"
         private const val WARNING_CHANNEL_ID = "vpn_warnings"
+        private const val ERROR_CHANNEL_ID = "vpn_errors"
         private const val NOTIFICATION_ID = 1001
         private const val WARNING_NOTIFICATION_ID = 1002
+        private const val ERROR_NOTIFICATION_ID = 1003
 
+        private const val HEV_CONFIG_NAME = "hev-socks5-tunnel.conf"
         private const val VPN_IPV4 = "198.18.0.1"
         private const val VPN_IPV6 = "fc00::1"
         private const val MAPPED_DNS = "198.18.0.2"
@@ -60,7 +63,24 @@ class RknVpnService : VpnService() {
     private var core: CoreRunner? = null
     private var lifecycleJob: Job? = null
     private var statsJob: Job? = null
+    private var recoveryJob: Job? = null
     private var warningSent = false
+    @Volatile private var recovering = false
+
+    /**
+     * Всё необходимое для перезапуска ядра без закрытия TUN. Конфиг ядра
+     * удаляется на диске при stop(), поэтому храним его в памяти сессии.
+     */
+    private data class Session(
+        val config: String,
+        val credentials: Credentials,
+        val mixedPort: Int,
+        val apiPort: Int,
+        val nodeName: String,
+        var startedAt: Long
+    )
+
+    private var session: Session? = null
 
     /**
      * Номер последней запрошенной операции start/stop. Нужен, чтобы
@@ -73,11 +93,20 @@ class RknVpnService : VpnService() {
             stopVpn(startId)
             return START_NOT_STICKY
         }
+        // Система может доставить START_STICKY с пустым intent после смерти процесса.
+        // Включаемся только если пользователь действительно хотел VPN.
+        if (intent == null && !VpnController.isWanted()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         startVpn()
         return START_STICKY
     }
 
     override fun onRevoke() {
+        // Пользователь (или другой VPN) отозвал разрешение — не пытаемся вернуть
+        // соединение watchdog'ом после смены сети.
+        VpnController.onPermissionDenied()
         stopVpn()
         super.onRevoke()
     }
@@ -133,6 +162,16 @@ class RknVpnService : VpnService() {
                         )
                     )
 
+                    val current = Session(
+                        config = config,
+                        credentials = credentials,
+                        mixedPort = mixedPort,
+                        apiPort = apiPort,
+                        nodeName = node.name,
+                        startedAt = 0L
+                    )
+                    session = current
+
                     val runner = CoreRunner(this@RknVpnService)
                     core = runner
                     runner.start(config, mixedPort)
@@ -172,7 +211,7 @@ class RknVpnService : VpnService() {
                     tun = fd
                     ensureActive()
 
-                    val hevConfig = File(cacheDir, "hev-socks5-tunnel.conf").apply {
+                    val hevConfig = File(cacheDir, HEV_CONFIG_NAME).apply {
                         writeText(
                             HevTunnel.buildConfig(mixedPort, credentials.user, credentials.password),
                             Charsets.UTF_8
@@ -184,13 +223,16 @@ class RknVpnService : VpnService() {
                     ensureActive()
 
                     val startedAt = System.currentTimeMillis()
+                    current.startedAt = startedAt
                     VpnController.serviceConnected(startedAt, apiPort, credentials.secret)
                     startForegroundCompat(buildNotification(node.name, startedAt))
                     startStats()
                 } catch (t: Throwable) {
                     stopResources()
                     if (t is CancellationException) return@withLock
-                    VpnController.serviceError(t.message ?: getString(R.string.error_unknown_connection))
+                    val message = t.message ?: getString(R.string.error_unknown_connection)
+                    VpnController.serviceError(message)
+                    showErrorNotification(message)
                     stopForegroundCompat()
                     stopSelf()
                 }
@@ -221,11 +263,17 @@ class RknVpnService : VpnService() {
     private fun stopResources() {
         statsJob?.cancel()
         statsJob = null
+        recoveryJob?.cancel()
+        recoveryJob = null
+        recovering = false
         runCatching { HevTunnel.stop() }
         runCatching { tun?.close() }
         tun = null
         runCatching { core?.stop() }
         core = null
+        // В hev-конфиге лежит SOCKS-логин и пароль сессии.
+        runCatching { File(cacheDir, HEV_CONFIG_NAME).delete() }
+        session = null
     }
 
     // ------------------------------------------------------------------ stats
@@ -245,8 +293,8 @@ class RknVpnService : VpnService() {
                 // процесса системой). Без этой проверки UI показывал бы
                 // «подключено», хотя трафик уже никуда не идёт.
                 if (core?.isRunning() != true || !HevTunnel.isRunning()) {
-                    VpnController.serviceError(getString(R.string.error_core_lost))
-                    stopVpn()
+                    // TUN остаётся открытым: пакеты теряются, но не идут напрямую.
+                    scheduleRecovery()
                     return@launch
                 }
                 val stats = HevTunnel.stats()
@@ -266,6 +314,74 @@ class RknVpnService : VpnService() {
         }
     }
 
+    // --------------------------------------------------------------- recovery
+
+    /**
+     * Ядро или tun2socks умерли. TUN не закрываем: пока идёт перезапуск, пакеты
+     * теряются, но не уходят в обход VPN (мягкий kill switch). После 5 неудачных
+     * попыток с backoff поднимаем обычную ошибку и закрываем соединение.
+     */
+    private fun scheduleRecovery() {
+        if (recovering) return
+        val current = session
+        val fd = tun
+        if (current == null || fd == null) {
+            fatalCoreLoss()
+            return
+        }
+        recovering = true
+        VpnController.serviceRecovering()
+        startForegroundCompat(buildNotification(current.nodeName, null, reconnecting = true))
+        recoveryJob?.cancel()
+        recoveryJob = scope.launch {
+            for (waitSeconds in longArrayOf(1, 2, 4, 8, 16)) {
+                if (!isActive) return@launch
+                delay(waitSeconds * 1_000L)
+                if (!isActive || session !== current || tun !== fd) return@launch
+                if (runCatching { restartCore(current, fd) }.getOrDefault(false)) {
+                    recovering = false
+                    VpnController.serviceRecovered(
+                        System.currentTimeMillis(), current.apiPort, current.credentials.secret
+                    )
+                    startForegroundCompat(buildNotification(current.nodeName, current.startedAt))
+                    startStats()
+                    return@launch
+                }
+            }
+            recovering = false
+            fatalCoreLoss()
+        }
+    }
+
+    /** Перезапуск mihomo и hev на том же TUN-дескрипторе. */
+    private fun restartCore(current: Session, fd: ParcelFileDescriptor): Boolean {
+        runCatching { HevTunnel.stop() }
+        runCatching { core?.stop() }
+        core = null
+        val runner = CoreRunner(this)
+        runner.start(current.config, current.mixedPort)
+        core = runner
+        val hevConfig = File(cacheDir, HEV_CONFIG_NAME).apply {
+            writeText(
+                HevTunnel.buildConfig(
+                    current.mixedPort, current.credentials.user, current.credentials.password
+                ),
+                Charsets.UTF_8
+            )
+        }
+        if (HevTunnel.start(hevConfig.absolutePath, fd.fd)) return true
+        runCatching { runner.stop() }
+        core = null
+        return false
+    }
+
+    private fun fatalCoreLoss() {
+        val message = getString(R.string.error_core_lost)
+        VpnController.serviceError(message)
+        showErrorNotification(message)
+        stopVpn()
+    }
+
     // ----------------------------------------------------------- notification
 
     /**
@@ -278,7 +394,7 @@ class RknVpnService : VpnService() {
         val traffic = if (sub.hasTraffic && sub.total > 0 &&
             sub.remaining.toDouble() / sub.total <= 0.1
         ) {
-            getString(R.string.warning_low_traffic)
+            getString(R.string.warning_low_traffic, 10)
         } else null
         val days = if (sub.hasExpire) Format.daysLeft(sub.expire) else Long.MAX_VALUE
         val expiry = if (days <= 3) getString(R.string.warning_expiry, days) else null
@@ -325,6 +441,43 @@ class RknVpnService : VpnService() {
         }
     }
 
+    private fun showErrorNotification(message: String) {
+        ensureErrorChannel()
+        val openIntent = PendingIntent.getActivity(
+            this,
+            3,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, ERROR_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(R.string.notification_error_title))
+            .setContentText(message)
+            .setAutoCancel(true)
+            .setContentIntent(openIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        runCatching {
+            getSystemService(NotificationManager::class.java)
+                .notify(ERROR_NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun ensureErrorChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            if (manager.getNotificationChannel(ERROR_CHANNEL_ID) == null) {
+                manager.createNotificationChannel(
+                    NotificationChannel(
+                        ERROR_CHANNEL_ID,
+                        getString(R.string.error_channel_name),
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply { description = getString(R.string.error_channel_description) }
+                )
+            }
+        }
+    }
+
     private fun startForegroundCompat(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
@@ -346,7 +499,11 @@ class RknVpnService : VpnService() {
         }
     }
 
-    private fun buildNotification(nodeName: String?, startedAt: Long?): Notification {
+    private fun buildNotification(
+        nodeName: String?,
+        startedAt: Long?,
+        reconnecting: Boolean = false
+    ): Notification {
         ensureChannel()
         val openIntent = PendingIntent.getActivity(
             this,
@@ -361,6 +518,7 @@ class RknVpnService : VpnService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val text = when {
+            reconnecting -> getString(R.string.notification_reconnecting, nodeName.orEmpty())
             nodeName == null -> getString(R.string.notification_connecting)
             startedAt != null -> getString(R.string.notification_connected, nodeName)
             else -> nodeName
