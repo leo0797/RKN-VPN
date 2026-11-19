@@ -157,7 +157,10 @@
     <string name="import_action">Импортировать</string>
     <string name="update_available">Доступна версия %1$s</string>
     <string name="no_release_notes">Описание обновления не указано.</string>
-    <string name="download_apk">Скачать APK</string>
+    <string name="download_apk">Скачать и установить</string>
+    <string name="updating_title">Обновление</string>
+    <string name="downloading_apk">Загрузка APK…</string>
+    <string name="error_download_failed">Не удалось скачать APK. Проверьте соединение.</string>
     <string name="open_release">Открыть релиз</string>
     <string name="later">Позже</string>
     <string name="cannot_open_file">Не удалось открыть файл</string>

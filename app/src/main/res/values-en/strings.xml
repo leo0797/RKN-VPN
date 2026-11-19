@@ -157,7 +157,10 @@
     <string name="import_action">Import</string>
     <string name="update_available">Version %1$s is available</string>
     <string name="no_release_notes">No release notes provided.</string>
-    <string name="download_apk">Download APK</string>
+    <string name="download_apk">Download and install</string>
+    <string name="updating_title">Updating</string>
+    <string name="downloading_apk">Downloading APK…</string>
+    <string name="error_download_failed">Could not download the APK. Check your connection.</string>
     <string name="open_release">Open release</string>
     <string name="later">Later</string>
     <string name="cannot_open_file">Unable to open the file</string>

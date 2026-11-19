@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import app.rkn.vpn.core.ApkInstaller
 import app.rkn.vpn.ui.AppRoot
 import app.rkn.vpn.vpn.VpnController
 
@@ -37,6 +38,12 @@ class MainActivity : BaseActivity() {
             AppRoot(onRequestConnect = { requestVpnPermission() })
         }
         if (savedInstanceState == null) handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Установщик уже закрыт (или пользователь отказался) — кэш APK больше не нужен.
+        ApkInstaller.cleanup(this)
     }
 
     override fun onNewIntent(intent: Intent) {

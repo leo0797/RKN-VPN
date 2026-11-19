@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +43,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import app.rkn.vpn.BuildConfig
 import app.rkn.vpn.R
+import app.rkn.vpn.core.ApkInstaller
 import app.rkn.vpn.core.UpdateChecker
 import app.rkn.vpn.core.UpdateChecker.Release
 import app.rkn.vpn.data.AppState
@@ -136,6 +138,8 @@ fun SettingsScreen(
     var update by remember { mutableStateOf<Release?>(null) }
     var updateChecked by remember { mutableStateOf(false) }
     var updateChecking by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf<Int?>(null) }
+    var downloadError by remember { mutableStateOf<String?>(null) }
     val updateScope = rememberCoroutineScope()
 
     Column(
@@ -526,9 +530,29 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val url = release.apkUrl ?: release.pageUrl
-                    runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    val apkUrl = release.apkUrl
+                    if (apkUrl == null) {
+                        // Редкий случай: релиз без APK — показываем страницу в браузере.
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.pageUrl)))
+                        }
+                        update = null
+                        return@TextButton
+                    }
+                    update = null
+                    downloadError = null
+                    downloadProgress = 0
+                    updateScope.launch {
+                        runCatching {
+                            val file = ApkInstaller.download(
+                                context, apkUrl, release.version
+                            ) { downloadProgress = it }
+                            ApkInstaller.install(context, file)
+                        }.onFailure { e ->
+                            downloadError = e.message?.takeIf { it.isNotBlank() }
+                                ?: context.getString(R.string.error_download_failed)
+                        }
+                        downloadProgress = null
                     }
                 }) {
                     Text(stringResource(if (release.apkUrl != null) R.string.download_apk else R.string.open_release))
@@ -536,6 +560,49 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { update = null }) { Text(stringResource(R.string.later)) }
+            }
+        )
+    }
+
+    val progress = downloadProgress
+    val failure = downloadError
+    if (progress != null || failure != null) {
+        AlertDialog(
+            onDismissRequest = { downloadError = null },
+            title = { Text(stringResource(R.string.updating_title)) },
+            text = {
+                Column {
+                    if (failure != null) {
+                        Text(
+                            text = failure,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.downloading_apk),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { (progress ?: 0) / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "$progress%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (failure != null) {
+                    TextButton(onClick = { downloadError = null }) {
+                        Text(stringResource(R.string.close))
+                    }
+                }
             }
         )
     }
