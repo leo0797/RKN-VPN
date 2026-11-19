@@ -10,8 +10,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.ui.AppRoot
 import app.rkn.vpn.vpn.VpnController
+import kotlinx.coroutines.launch
 
 class MainActivity : BaseActivity() {
 
@@ -32,11 +37,30 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestNotificationPermission()
         setContent {
             AppRoot(onRequestConnect = { requestVpnPermission() })
         }
+        observeFirstConnection()
         if (savedInstanceState == null) handleIntent(intent)
+    }
+
+    /**
+     * Системный диалог POST_NOTIFICATIONS не должен встречать пользователя
+     * сразу при открытии приложения — спрашиваем после первого подключения,
+     * когда стало ясно, зачем нужны уведомления.
+     */
+    private fun observeFirstConnection() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                VpnController.state.collect { state ->
+                    if (!state.connected) return@collect
+                    val prefs = Prefs(this@MainActivity)
+                    if (prefs.notificationPermissionRequested) return@collect
+                    prefs.notificationPermissionRequested = true
+                    requestNotificationPermission()
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -100,6 +100,14 @@ class Prefs(context: Context) {
         set(value) = sp.edit().putBoolean(KEY_KILL_SWITCH_REMINDER, value).apply()
 
     /**
+     * Диалог уведомлений показывается после первого успешного подключения,
+     * а не при каждом старте приложения. Флаг не даёт спрашивать повторно.
+     */
+    var notificationPermissionRequested: Boolean
+        get() = sp.getBoolean(KEY_NOTIFICATION_PERMISSION, false)
+        set(value) = sp.edit().putBoolean(KEY_NOTIFICATION_PERMISSION, value).apply()
+
+    /**
      * Намерение пользователя держать VPN включённым. Хранится на диске, чтобы
      * START_STICKY после смерти процесса не включал трафик против воли пользователя
      * и, наоборот, мог восстановить подключение, которое он включал.
@@ -147,6 +155,7 @@ class Prefs(context: Context) {
         const val DEFAULT_CHECK_URL = "https://www.gstatic.com/generate_204"
         private const val KEY_AUTO_SWITCH = "auto_switch"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
+        private const val KEY_NOTIFICATION_PERMISSION = "notification_permission_requested"
         private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"
         private const val KEY_LAST_REFRESH = "last_refresh"
