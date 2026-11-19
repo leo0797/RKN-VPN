@@ -50,22 +50,9 @@ Remnawave и 3x-ui, статистика, маршрутизация и плит
 4. В шторке: «Изменить» → перетащите плитку **RKN VPN**. Тап переключает VPN,
    долгий тап открывает приложение.
 
-## Свой GitHub-репозиторий
-
-1. Создайте публичный репозиторий на github.com, например `leo0797/RKN-VPN`.
-2. В папке проекта: `git init`, `git add .`, `git commit -m "Initial import"`,
-   `git remote add origin https://github.com/<вас>/<репозиторий>.git`,
-   `git push -u origin main`.
-3. В `app/build.gradle.kts` в `UPDATE_REPO` укажите тот же `<владелец>/<репозиторий>` —
-   оттуда приложение будет проверять обновления.
-4. Откройте **Actions → build → Run workflow**: тесты пройдут, APK появятся в Artifacts.
-5. Чтобы выпустить релиз, сделайте тег `v1.0.4` и отправьте его на GitHub:
-   `git tag v1.0.4 && git push origin v1.0.4`. Workflow создаст Release и приложит
-   оба APK. Кнопка «Проверить обновления» в приложении увидит новый релиз.
-
 ## Сборка
 
-Проще через GitHub Actions (см. выше). Workflow скачает mihomo и
+Проще через GitHub Actions: workflow скачает mihomo и
 `hev-socks5-tunnel.aar`, прогнает тесты и положит APK в Artifacts.
 
 Локально нужны JDK 17 и Android SDK 35; сначала запустите
