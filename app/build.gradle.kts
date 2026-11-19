@@ -8,12 +8,27 @@ android {
     namespace = "app.rkn.vpn"
     compileSdk = 35
 
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.keystore")
-            storePassword = "rknvpn2026"
-            keyAlias = "rknvpn"
-            keyPassword = "rknvpn2026"
+    val releaseStoreFile = providers.gradleProperty("RELEASE_STORE_FILE").orNull
+        ?: System.getenv("RELEASE_STORE_FILE")
+    val releaseStorePassword = providers.gradleProperty("RELEASE_STORE_PASSWORD").orNull
+        ?: System.getenv("RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = providers.gradleProperty("RELEASE_KEY_ALIAS").orNull
+        ?: System.getenv("RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = providers.gradleProperty("RELEASE_KEY_PASSWORD").orNull
+        ?: System.getenv("RELEASE_KEY_PASSWORD")
+
+    val hasReleaseSigning = listOf(
+        releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 
