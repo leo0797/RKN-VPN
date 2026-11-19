@@ -1,6 +1,6 @@
 # RKN VPN
 
-**Автор:** leo797
+**Автор:** leo0797
 
 Android VPN-клиент на ядре mihomo (Clash.Meta): VLESS + XHTTP + Reality,
 Hysteria2, TUIC, AnyTLS, Shadowsocks, Trojan, VMess и WireGuard. Подписки
@@ -52,7 +52,7 @@ Remnawave и 3x-ui, статистика, маршрутизация и плит
 
 ## Свой GitHub-репозиторий
 
-1. Создайте публичный репозиторий на github.com, например `leo797/RKN-VPN`.
+1. Создайте публичный репозиторий на github.com, например `leo0797/RKN-VPN`.
 2. В папке проекта: `git init`, `git add .`, `git commit -m "Initial import"`,
    `git remote add origin https://github.com/<вас>/<репозиторий>.git`,
    `git push -u origin main`.

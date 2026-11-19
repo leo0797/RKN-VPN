@@ -27,7 +27,7 @@ class UpdateCheckerTest {
             {
               "tag_name": "v9.9.9",
               "body": "Новое",
-              "html_url": "https://github.com/leo797/RKN-VPN/releases/tag/v9.9.9",
+              "html_url": "https://github.com/leo0797/RKN-VPN/releases/tag/v9.9.9",
               "assets": [
                 {"name": "app-armeabi-v7a-release.apk", "browser_download_url": "https://example.com/arm.apk"},
                 {"name": "app-arm64-v8a-release.apk", "browser_download_url": "https://example.com/arm64.apk"}

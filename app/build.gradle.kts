@@ -16,7 +16,7 @@ android {
         versionName = "1.0.4"
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
-        buildConfigField("String", "UPDATE_REPO", "\"leo797/RKN-VPN\"")
+        buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")
     }
 
     buildTypes {
