@@ -50,22 +50,6 @@ Remnawave и 3x-ui, статистика, маршрутизация и плит
 4. В шторке: «Изменить» → перетащите плитку **RKN VPN**. Тап переключает VPN,
    долгий тап открывает приложение.
 
-## Сборка
-
-Проще через GitHub Actions: workflow скачает mihomo и
-`hev-socks5-tunnel.aar`, прогнает тесты и положит APK в Artifacts.
-
-Локально нужны JDK 17 и Android SDK 35; сначала запустите
-`scripts/fetch-core.sh` (Linux/macOS) или `scripts/fetch-core.ps1` (Windows),
-затем `./gradlew :app:assembleRelease`. На Windows с кириллицей в пути
-используйте `subst R: "путь_к_проекту"` и собирайте через `R:\gradlew.bat -p R:\`.
-
-APK подписан debug-ключом: его можно ставить вручную, но нельзя публиковать
-в магазине. Для публикации добавьте свой keystore в secrets GitHub и замените
-`signingConfig` в `app/build.gradle.kts`.
-
-Тесты: `./gradlew :app:testDebugUnitTest`.
-
 ## Безопасность и ограничения
 
 - SOCKS5 и API mihomo слушают только `127.0.0.1`; прокси защищён паролем, API — secret.
