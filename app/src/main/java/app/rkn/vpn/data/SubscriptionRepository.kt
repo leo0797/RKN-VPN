@@ -240,7 +240,10 @@ class SubscriptionRepository(private val prefs: Prefs) {
     }
 
     companion object {
-        private const val MAX_REDIRECTS = 5\n        private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024\n        private const val CONNECT_TIMEOUT_MS = 15_000\n        private const val READ_TIMEOUT_MS = 30_000
+        private const val MAX_REDIRECTS = 5
+        private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+        private const val CONNECT_TIMEOUT_MS = 15_000
+        private const val READ_TIMEOUT_MS = 30_000
         const val USER_AGENT = "RKN-VPN/1.0 (Android) mihomo/1.19.34"
     }
 }
