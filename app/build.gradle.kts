@@ -21,8 +21,8 @@ android {
         applicationId = "app.rkn.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.0.11"
+        versionCode = 13
+        versionName = "1.0.12"
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
         buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")

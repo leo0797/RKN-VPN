@@ -523,10 +523,16 @@ fun SettingsScreen(
             onDismissRequest = { update = null },
             title = { Text(stringResource(R.string.update_available, release.version)) },
             text = {
-                Text(
-                    text = release.notes.take(800).ifBlank { stringResource(R.string.no_release_notes) },
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = release.notes.ifBlank { stringResource(R.string.no_release_notes) },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
