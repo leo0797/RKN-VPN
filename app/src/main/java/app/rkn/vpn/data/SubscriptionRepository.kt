@@ -1,10 +1,15 @@
 package app.rkn.vpn.data
 
 import android.os.Build
+import app.rkn.vpn.R
+import app.rkn.vpn.core.ConfigImporter
 import app.rkn.vpn.core.LinkParser
+import app.rkn.vpn.core.LocalProxy
+import app.rkn.vpn.core.Strings
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
@@ -12,37 +17,42 @@ import java.util.zip.GZIPInputStream
 /**
  * Загрузка подписки Remnawave.
  *
- * Поддерживаются оба распространённых варианта ответа:
- *  - base64-список share-ссылок (vless://, hysteria2://, ...);
- *  - plain-список ссылок.
+ * Поддерживаются base64- и plain-списки share-ссылок, Clash YAML и SIP008 JSON,
+ * а также обёртки панелей вида {"links": [...]} / [ {"url": "..."} ].
  * Заголовки subscription-userinfo / profile-* дают трафик, срок и название.
  */
-class SubscriptionRepository(private val prefs: Prefs) {
+class SubscriptionRepository(
+    private val prefs: Prefs,
+    private val strings: Strings
+) {
 
     data class Result(
         val nodes: List<ProxyNode>,
         val info: SubscriptionInfo
     )
 
-    fun fetch(url: String): Result {
-        if (url.isBlank()) error("Ссылка на подписку не задана")
-        val response = request(url.trim())
+    /**
+     * @param proxy локальный mixed-port ядра; используется, если прямой запрос
+     * не прошёл из-за блокировки сети (но не при неверной ссылке).
+     */
+    fun fetch(url: String, proxy: LocalProxy? = null): Result {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) error(strings.get(R.string.error_subscription_url_required))
+
+        val response = request(trimmed, proxy)
         if (response.code !in 200..299) {
             val hint = when (response.code) {
-                404 -> "Подписка не найдена (404). Проверьте ссылку. Если в Remnawave включён HWID-лимит, устройство могло быть не зарегистрировано."
-                401, 403 -> "Доступ запрещён (${response.code}). Проверьте ссылку на подписку."
-                else -> "Сервер вернул HTTP ${response.code}."
+                404 -> strings.get(R.string.error_sub_not_found)
+                401, 403 -> strings.get(R.string.error_sub_forbidden, response.code)
+                else -> strings.get(R.string.error_sub_http_status, response.code)
             }
             error(hint)
         }
 
         val nodes = extractNodes(response.body)
-        if (nodes.isEmpty()) {
-            error("В ответе нет поддерживаемых узлов. Проверьте формат подписки (vless/hysteria2/tuic/ss/trojan/vmess).")
-        }
+        if (nodes.isEmpty()) error(strings.get(R.string.error_sub_no_nodes))
 
-        val info = parseInfo(response.headers)
-        return Result(nodes, info)
+        return Result(nodes, parseInfo(response.headers))
     }
 
     // ------------------------------------------------------------- transport
@@ -53,42 +63,72 @@ class SubscriptionRepository(private val prefs: Prefs) {
         val headers: Map<String, String>
     )
 
-    private fun request(url: String): Response {
-        var current = url
-        var lastError: Exception? = null
-        for (attempt in 0..5) {
-            try {
-                val parsed = URL(current)
-                // Только http/https: file:, jar: и прочие схемы не должны
-                // открываться по ссылке из настроек.
-                if (parsed.protocol?.lowercase() !in ALLOWED_SCHEMES) {
-                    error("Поддерживаются только ссылки http:// и https://")
-                }
-                val conn = (parsed.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    instanceFollowRedirects = false
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", USER_AGENT)
-                    setRequestProperty("Accept", "*/*")
-                    setRequestProperty("Accept-Encoding", "identity")
-                    setRequestProperty("x-hwid", prefs.hwid)
-                    setRequestProperty("x-device-os", "Android")
-                    setRequestProperty("x-ver-os", Build.VERSION.RELEASE ?: "unknown")
-                    setRequestProperty(
-                        "x-device-model",
-                        listOf(Build.MANUFACTURER, Build.MODEL)
-                            .filter { it.isNotBlank() }
-                            .joinToString(" ")
-                            .trim()
-                    )
-                }
+    /** Сначала напрямую, затем — при сетевой ошибке — через локальный прокси. */
+    private fun request(url: String, proxy: LocalProxy?): Response {
+        val direct = runCatching { requestOnce(url, null) }
+        if (direct.isSuccess) return direct.getOrThrow()
+        val directError = direct.exceptionOrNull()!!
+        // Неверную схему/адрес повторять бессмысленно и долго.
+        if (proxy == null || directError is IllegalArgumentException) throw directError
 
+        return runCatching { requestOnce(url, proxy) }.getOrElse { proxyError ->
+            throw IllegalStateException(
+                strings.get(
+                    R.string.error_sub_failed_both,
+                    directError.message.orEmpty(),
+                    proxyError.message.orEmpty()
+                ),
+                proxyError
+            )
+        }
+    }
+
+    /** Одна попытка с ручными редиректами. Раньше здесь было 6 попыток без пауз. */
+    private fun requestOnce(url: String, proxy: LocalProxy?): Response {
+        var current = url
+        var redirects = 0
+        while (true) {
+            val parsed = runCatching { URL(current) }.getOrElse {
+                throw IllegalArgumentException(strings.get(R.string.error_sub_invalid_url))
+            }
+            // Только http/https: file:, jar: и прочие схемы не открываем.
+            if (parsed.protocol?.lowercase() !in ALLOWED_SCHEMES) {
+                throw IllegalArgumentException(strings.get(R.string.error_sub_scheme))
+            }
+
+            val conn = if (proxy != null) {
+                proxy.open(parsed)
+            } else {
+                parsed.openConnection() as HttpURLConnection
+            }
+            conn.connectTimeout = CONNECT_TIMEOUT_MS
+            conn.readTimeout = READ_TIMEOUT_MS
+            conn.instanceFollowRedirects = false
+            conn.requestMethod = "GET"
+            conn.setRequestProperty("User-Agent", USER_AGENT)
+            conn.setRequestProperty("Accept", "*/*")
+            conn.setRequestProperty("Accept-Encoding", "identity")
+            conn.setRequestProperty("x-hwid", prefs.hwid)
+            conn.setRequestProperty("x-device-os", "Android")
+            conn.setRequestProperty("x-ver-os", Build.VERSION.RELEASE ?: "unknown")
+            conn.setRequestProperty(
+                "x-device-model",
+                listOf(Build.MANUFACTURER, Build.MODEL)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+                    .trim()
+            )
+
+            try {
                 val code = conn.responseCode
                 if (code in 300..399) {
                     val location = conn.getHeaderField("Location")
-                    conn.disconnect()
-                    if (location.isNullOrBlank()) error("Редирект без Location")
+                    if (location.isNullOrBlank()) {
+                        throw IllegalStateException(strings.get(R.string.error_sub_redirect))
+                    }
+                    if (++redirects > MAX_REDIRECTS) {
+                        throw IllegalStateException(strings.get(R.string.error_sub_redirect_loop))
+                    }
                     current = URL(URL(current), location).toString()
                     continue
                 }
@@ -108,21 +148,24 @@ class SubscriptionRepository(private val prefs: Prefs) {
                         }
                     }
                 }
-                conn.disconnect()
                 return Response(code, body, headers)
-            } catch (e: Exception) {
-                lastError = e
+            } finally {
+                conn.disconnect()
             }
         }
-        error("Не удалось загрузить подписку: ${lastError?.message ?: "неизвестная ошибка"}")
     }
 
-    private fun readAll(stream: java.io.InputStream): String {
+    private fun readAll(stream: InputStream): String {
         val out = ByteArrayOutputStream()
         val buffer = ByteArray(16 * 1024)
+        var total = 0
         while (true) {
             val read = stream.read(buffer)
             if (read <= 0) break
+            total += read
+            if (total > MAX_BODY_BYTES) {
+                error(strings.get(R.string.error_sub_too_large))
+            }
             out.write(buffer, 0, read)
         }
         // Некоторые панели отдают подписку с UTF-8 BOM — он ломает и base64,
@@ -172,7 +215,11 @@ class SubscriptionRepository(private val prefs: Prefs) {
             }
         }
 
-        return LinkParser.parseSubscription(body)
+        // Панели часто отдают Clash YAML или SIP008 — тот же парсер, что и при
+        // ручном импорте. Оставляем LinkParser как последний запасной вариант.
+        val imported = runCatching { ConfigImporter.import(trimmed) }.getOrDefault(emptyList())
+        if (imported.isNotEmpty()) return imported
+        return LinkParser.parseSubscription(trimmed)
     }
 
     private fun parseInfo(headers: Map<String, String>): SubscriptionInfo {
@@ -218,6 +265,10 @@ class SubscriptionRepository(private val prefs: Prefs) {
 
     companion object {
         private val ALLOWED_SCHEMES = setOf("http", "https")
+        private const val CONNECT_TIMEOUT_MS = 12_000
+        private const val READ_TIMEOUT_MS = 20_000
+        private const val MAX_REDIRECTS = 5
+        private const val MAX_BODY_BYTES = 2 * 1024 * 1024
         const val USER_AGENT = "RKN-VPN/1.0 (Android) mihomo/1.19.34"
     }
 }

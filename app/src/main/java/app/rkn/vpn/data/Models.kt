@@ -84,6 +84,7 @@ data class AppState(
     val lanDirect: Boolean = true,
     val splitEnabled: Boolean = false,
     val splitApps: Set<String> = emptySet(),
+    val checkUrl: String = Prefs.DEFAULT_CHECK_URL,
     val theme: String = "system",
     val language: String = "system"
 ) {

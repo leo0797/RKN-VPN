@@ -44,6 +44,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.rkn.vpn.BuildConfig
 import app.rkn.vpn.R
 import app.rkn.vpn.core.ApkInstaller
+import app.rkn.vpn.core.Strings
 import app.rkn.vpn.core.UpdateChecker
 import app.rkn.vpn.core.UpdateChecker.Release
 import app.rkn.vpn.data.AppState
@@ -66,12 +67,14 @@ fun SettingsScreen(
     onThemeChange: (String) -> Unit
 ) {
     var url by remember(state.subscriptionUrl) { mutableStateOf(state.subscriptionUrl) }
+    var checkUrl by remember(state.checkUrl) { mutableStateOf(state.checkUrl) }
     var logs by remember { mutableStateOf<String?>(null) }
     var fileMessage by remember { mutableStateOf<String?>(null) }
     var subscriptionMessage by remember { mutableStateOf<String?>(null) }
     var importMode by remember { mutableStateOf<String?>(null) }
     var importText by remember { mutableStateOf("") }
     var importError by remember { mutableStateOf<String?>(null) }
+    var confirmBackupExport by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     fun isSubscriptionUrl(value: String): Boolean =
@@ -138,9 +141,36 @@ fun SettingsScreen(
     var update by remember { mutableStateOf<Release?>(null) }
     var updateChecked by remember { mutableStateOf(false) }
     var updateChecking by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
     var downloadProgress by remember { mutableStateOf<Int?>(null) }
     var downloadError by remember { mutableStateOf<String?>(null) }
     val updateScope = rememberCoroutineScope()
+
+    fun runUpdateCheck() {
+        if (updateChecking) return
+        updateChecking = true
+        updateChecked = true
+        update = null
+        updateMessage = null
+        updateScope.launch {
+            when (val result = UpdateChecker.check(VpnController.localProxy())) {
+                is UpdateChecker.Result.Available -> update = result.release
+                UpdateChecker.Result.UpToDate ->
+                    updateMessage = context.getString(R.string.up_to_date)
+                is UpdateChecker.Result.Failed -> updateMessage = context.getString(
+                    when (result.reason) {
+                        UpdateChecker.Result.Failure.NETWORK ->
+                            R.string.update_check_failed_network
+                        UpdateChecker.Result.Failure.SERVER ->
+                            R.string.update_check_failed_server
+                        UpdateChecker.Result.Failure.MALFORMED ->
+                            R.string.update_check_failed_malformed
+                    }
+                )
+            }
+            updateChecking = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -268,7 +298,7 @@ fun SettingsScreen(
                         }
                     }
                     OutlinedButton(
-                        onClick = { exportLauncher.launch("rkn-vpn-backup.json") },
+                        onClick = { confirmBackupExport = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         SingleLineLabel(
@@ -358,6 +388,41 @@ fun SettingsScreen(
             }
 
             SectionCard(title = stringResource(R.string.diagnostics)) {
+                OutlinedTextField(
+                    value = checkUrl,
+                    onValueChange = { checkUrl = it },
+                    label = { Text(stringResource(R.string.check_url_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(R.string.check_url_help),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { VpnController.setCheckUrl(checkUrl.trim()) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.save),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { checkUrl = state.checkUrl },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.reset),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = { logs = VpnController.readLogs().ifBlank { context.getString(R.string.log_empty) } },
@@ -390,25 +455,20 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
-                    onClick = {
-                        if (updateChecking) return@OutlinedButton
-                        updateChecking = true
-                        updateChecked = true
-                        updateScope.launch {
-                            update = UpdateChecker.check()
-                            updateChecking = false
-                        }
-                    },
+                    onClick = { runUpdateCheck() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(stringResource(if (updateChecking) R.string.checking_updates else R.string.check_updates))
                 }
-                if (updateChecked && !updateChecking && update == null) {
+                if (updateChecked && !updateChecking && update == null && updateMessage != null) {
                     Text(
-                        text = stringResource(R.string.up_to_date),
+                        text = updateMessage!!,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    TextButton(onClick = { runUpdateCheck() }) {
+                        Text(stringResource(R.string.retry))
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
                 Surface(
@@ -551,8 +611,11 @@ fun SettingsScreen(
                     updateScope.launch {
                         runCatching {
                             val file = ApkInstaller.download(
-                                context, apkUrl, release.version
-                            ) { downloadProgress = it }
+                                context, apkUrl, release.version,
+                                { downloadProgress = it },
+                                VpnController.localProxy(),
+                                Strings { id, args -> context.getString(id, *args) }
+                            )
                             ApkInstaller.install(context, file)
                         }.onFailure { e ->
                             downloadError = e.message?.takeIf { it.isNotBlank() }
@@ -608,6 +671,27 @@ fun SettingsScreen(
                     TextButton(onClick = { downloadError = null }) {
                         Text(stringResource(R.string.close))
                     }
+                }
+            }
+        )
+    }
+
+    if (confirmBackupExport) {
+        AlertDialog(
+            onDismissRequest = { confirmBackupExport = false },
+            title = { Text(stringResource(R.string.backup_export_warning_title)) },
+            text = { Text(stringResource(R.string.backup_export_warning_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmBackupExport = false
+                    exportLauncher.launch("rkn-vpn-backup.json")
+                }) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmBackupExport = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

@@ -21,26 +21,57 @@ object UpdateChecker {
         val pageUrl: String
     )
 
-    suspend fun check(): Release? = withContext(Dispatchers.IO) {
-        checkRepo(BuildConfig.UPDATE_REPO)
+    /**
+     * Раньше null означал и «нет обновления», и «нет сети». Теперь состояния
+     * разделены: UI может честно сказать, почему проверка не удалась.
+     */
+    sealed class Result {
+        data class Available(val release: Release) : Result()
+        data object UpToDate : Result()
+        data class Failed(val reason: Failure) : Result()
+
+        enum class Failure { NETWORK, SERVER, MALFORMED }
     }
 
-    internal fun checkRepo(repo: String): Release? = runCatching {
-        val connection = URL("https://api.github.com/repos/$repo/releases/latest")
-            .openConnection() as HttpURLConnection
+    suspend fun check(proxy: LocalProxy? = null): Result = withContext(Dispatchers.IO) {
+        checkRepo(BuildConfig.UPDATE_REPO, proxy)
+    }
+
+    internal fun checkRepo(repo: String, proxy: LocalProxy? = null): Result =
+        checkUrl("https://api.github.com/repos/$repo/releases/latest", proxy)
+
+    internal fun checkUrl(urlString: String, proxy: LocalProxy? = null): Result = runCatching {
+        val url = URL(urlString)
+        val connection = if (proxy != null) {
+            proxy.open(url)
+        } else {
+            url.openConnection() as HttpURLConnection
+        }
         connection.requestMethod = "GET"
-        connection.connectTimeout = 8_000
-        connection.readTimeout = 8_000
+        connection.connectTimeout = 10_000
+        connection.readTimeout = 10_000
         connection.setRequestProperty("Accept", "application/vnd.github+json")
         connection.setRequestProperty("User-Agent", "RKN-VPN/${BuildConfig.VERSION_NAME}")
         try {
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return null
-            val body = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            parse(body)
+            when (connection.responseCode) {
+                HttpURLConnection.HTTP_OK -> {
+                    val body = connection.inputStream.bufferedReader(Charsets.UTF_8)
+                        .use { it.readText() }
+                    val json = runCatching { JSONObject(body) }.getOrElse {
+                        return Result.Failed(Result.Failure.MALFORMED)
+                    }
+                    if (!json.has("tag_name")) {
+                        return Result.Failed(Result.Failure.MALFORMED)
+                    }
+                    val release = parse(body)
+                    if (release != null) Result.Available(release) else Result.UpToDate
+                }
+                else -> Result.Failed(Result.Failure.SERVER)
+            }
         } finally {
             connection.disconnect()
         }
-    }.getOrNull()
+    }.getOrElse { Result.Failed(Result.Failure.NETWORK) }
 
     internal fun parse(body: String): Release? {
         val json = JSONObject(body)
