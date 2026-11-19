@@ -59,10 +59,10 @@ class SubscriptionRepository(private val prefs: Prefs) {
         for (attempt in 0..5) {
             try {
                 val parsed = URL(current)
-                // Только https: file:, jar: и прочие схемы не должны
+                // Только http/https: file:, jar: и прочие схемы не должны
                 // открываться по ссылке из настроек.
                 if (parsed.protocol?.lowercase() !in ALLOWED_SCHEMES) {
-                    error("Поддерживаются только ссылки https://")
+                    error("Поддерживаются только ссылки http:// и https://")
                 }
                 val conn = (parsed.openConnection() as HttpURLConnection).apply {
                     connectTimeout = 15_000
@@ -217,7 +217,7 @@ class SubscriptionRepository(private val prefs: Prefs) {
     }
 
     companion object {
-        private val ALLOWED_SCHEMES = setOf("https")
+        private val ALLOWED_SCHEMES = setOf("http", "https")
         const val USER_AGENT = "RKN-VPN/1.0 (Android) mihomo/1.19.34"
     }
 }

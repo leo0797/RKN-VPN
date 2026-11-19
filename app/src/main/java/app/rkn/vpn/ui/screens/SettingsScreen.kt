@@ -75,7 +75,7 @@ fun SettingsScreen(
     val context = LocalContext.current
 
     fun isSubscriptionUrl(value: String): Boolean =
-        value.startsWith("https://", true)
+        value.startsWith("http://", true) || value.startsWith("https://", true)
 
     fun openImport(mode: String) {
         importMode = mode

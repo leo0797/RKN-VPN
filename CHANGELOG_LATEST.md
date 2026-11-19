@@ -1,15 +1,11 @@
-Что нового в 1.0.13:
+Что нового в 1.0.14:
 
-• Приложение подписывается новым release-ключом вместо debug-сертификата. Из-за смены подписи один раз удалите старую версию и установите эту вручную — после этого обновления внутри приложения продолжат работать.
-• Весь внешний трафик переведён на HTTPS. Локальный API ядра по-прежнему доступен только на 127.0.0.1.
-• Подписки принимаются только по ссылкам https://.
-• Проверка доступности узлов использует HTTPS.
-• Обновление через приложение сохранено: уже скачанный APK по-прежнему используется повторно, если установку отменили.
+• Снова поддерживаются подписки по http:// и https:// — вернули возможность использовать свой домен без SSL-сертификата.
+• Для загрузки подписок снова разрешён открытый HTTP-трафик; проверка узлов по-прежнему использует HTTPS.
+• Новая release-подпись и обновление через приложение сохранены.
 
-What's new in 1.0.13:
+What's new in 1.0.14:
 
-• The app is now signed with a proper release key instead of a debug certificate. Because the signing key changed, uninstall the old version and install this one manually once — in-app updates will keep working afterwards.
-• All external traffic is HTTPS-only. The local core API remains available on 127.0.0.1 only.
-• Subscriptions now accept https:// links only.
-• Node availability checks use HTTPS.
-• In-app updates are preserved: an already downloaded APK is still reused if you cancel the installation.
+• Subscription links work with both http:// and https:// again, so custom domains without TLS certificates are supported.
+• Cleartext HTTP traffic is allowed again for subscription downloads; node checks still use HTTPS.
+• The new release signing and in-app updates are unchanged.
