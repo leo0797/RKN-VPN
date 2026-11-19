@@ -21,17 +21,38 @@ object ApkInstaller {
     private const val MIME_APK = "application/vnd.android.package-archive"
     private const val BUFFER_SIZE = 64 * 1024
     private const val MIN_APK_SIZE = 1024 * 1024L
+    private const val PREFIX = "rkn-vpn-"
 
-    /** Удаляет готовые APK. Вызывается при холодном старте приложения. */
+    /**
+     * Удаляет мусор и уже установленный APK. Файл ещё не установленной версии
+     * оставляем: если пользователь прервал установку, его можно использовать повторно.
+     */
     fun cleanup(context: Context) {
         runCatching {
-            updateDir(context).listFiles()?.forEach { it.delete() }
+            updateDir(context).listFiles()?.forEach { file ->
+                val name = file.name
+                val version = name.removePrefix(PREFIX).removeSuffix(".apk")
+                if (!name.startsWith(PREFIX) || !name.endsWith(".apk") || version == BuildConfig.VERSION_NAME) {
+                    file.delete()
+                }
+            }
         }
     }
 
+    /** Уже скачанный и валидный APK нужной версии, либо null. */
+    private fun cached(context: Context, version: String): File? {
+        val file = File(updateDir(context), "$PREFIX$version.apk")
+        if (!file.exists()) return null
+        if (file.length() < MIN_APK_SIZE || !isValidApk(file)) {
+            file.delete()
+            return null
+        }
+        return file
+    }
+
     /**
-     * Скачивает APK в кэш. Прогресс приходит в 0..100.
-     * Перед запуском установщика проверяет, что файл действительно является APK.
+     * Возвращает APK из кэша, если он уже скачан, иначе скачивает.
+     * Прогресс приходит в 0..100.
      */
     suspend fun download(
         context: Context,
@@ -39,10 +60,14 @@ object ApkInstaller {
         version: String,
         onProgress: (Int) -> Unit
     ): File = withContext(Dispatchers.IO) {
-        cleanup(context)
+        cached(context, version)?.let {
+            withContext(Dispatchers.Main) { onProgress(100) }
+            return@withContext it
+        }
+        cleanupAll(context)
         val dir = updateDir(context)
-        val target = File(dir, "rkn-vpn-$version.apk")
-        val temp = File(dir, "rkn-vpn-$version.apk.part")
+        val target = File(dir, "$PREFIX$version.apk")
+        val temp = File(dir, "$PREFIX$version.apk.part")
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.connectTimeout = 15_000
@@ -78,7 +103,7 @@ object ApkInstaller {
             }
             if (written < MIN_APK_SIZE) error("APK too small")
             if (total > 0 && written != total.toLong()) error("incomplete download")
-            verifyApk(temp)
+            if (!isValidApk(temp)) error("invalid APK file")
             if (!temp.renameTo(target)) {
                 target.delete()
                 if (!temp.renameTo(target)) error("cannot save APK")
@@ -104,24 +129,21 @@ object ApkInstaller {
         context.startActivity(intent)
     }
 
-    /**
-     * Отсекает HTML-заглушки и оборванные загрузки до того, как файл попадёт
-     * в установщик (иначе user видит «пакет повреждён»).
-     */
-    private fun verifyApk(file: File) {
+    private fun isValidApk(file: File): Boolean = runCatching {
         file.inputStream().use { input ->
             val magic = ByteArray(4)
-            if (input.read(magic) != magic.size ||
-                magic[0] != 'P'.code.toByte() ||
-                magic[1] != 'K'.code.toByte() ||
-                magic[2] != 3.toByte() ||
-                magic[3] != 4.toByte()
-            ) {
-                error("not an APK file")
-            }
-        }
-        ZipFile(file).use { zip ->
-            if (zip.getEntry("AndroidManifest.xml") == null) error("invalid APK contents")
+            input.read(magic) == magic.size &&
+                magic[0] == 'P'.code.toByte() &&
+                magic[1] == 'K'.code.toByte() &&
+                magic[2] == 3.toByte() &&
+                magic[3] == 4.toByte()
+        } && ZipFile(file).use { it.getEntry("AndroidManifest.xml") != null }
+    }.getOrDefault(false)
+
+    /** Полная очистка перед загрузкой другой версии. */
+    private fun cleanupAll(context: Context) {
+        runCatching {
+            updateDir(context).listFiles()?.forEach { it.delete() }
         }
     }
 
