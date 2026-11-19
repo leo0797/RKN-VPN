@@ -8,12 +8,21 @@ android {
     namespace = "app.rkn.vpn"
     compileSdk = 35
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "app.rkn.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
         buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")
@@ -25,7 +34,7 @@ android {
             isShrinkResources = false
             // Подписываем debug-ключом, чтобы APK из CI сразу устанавливался.
             // Для публикации замените на собственный keystore (см. README).
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
