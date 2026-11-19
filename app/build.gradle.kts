@@ -47,8 +47,13 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            // Подписывается release-ключом, чтобы APK из CI сразу устанавливался.
-            signingConfig = signingConfigs.getByName("release")
+            // В CI для PR собираем unsigned APK; релиз подписывается,
+            // когда переданы параметры существующего release-ключа.
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                signingConfig = null
+            }
         }
     }
 
