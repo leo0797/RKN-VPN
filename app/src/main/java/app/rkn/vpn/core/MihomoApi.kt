@@ -12,7 +12,7 @@ import java.net.URLEncoder
  */
 object MihomoApi {
 
-    private const val TEST_URL = "http://www.gstatic.com/generate_204"
+    private const val TEST_URL = "https://www.gstatic.com/generate_204"
 
     /** Возвращает задержку в мс или null, если узел недоступен. */
     fun delay(apiPort: Int, secret: String, proxyName: String, timeoutMs: Int = 5_000): Int? =

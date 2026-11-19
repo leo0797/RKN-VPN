@@ -123,11 +123,11 @@
     <string name="save_backup">Save settings backup</string>
     <string name="import_config">Paste config</string>
     <string name="subscription_paste_title">Add subscription</string>
-    <string name="subscription_paste_text">Paste a subscription link (http:// or https://). The app will load servers from it.</string>
+    <string name="subscription_paste_text">Paste an https:// subscription link. The app will load servers from it.</string>
     <string name="subscription_paste_label">Subscription link</string>
     <string name="subscription_paste_action">Save</string>
     <string name="error_qr_not_subscription">The QR code does not contain a subscription link. Use Paste config or From file for a config.</string>
-    <string name="error_not_subscription_link">This is not a subscription link. An http:// or https:// link is required.</string>
+    <string name="error_not_subscription_link">This is not a subscription link. An https:// link is required.</string>
     <string name="appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
@@ -152,7 +152,7 @@
     <string name="up_to_date">You are up to date or the update server is unavailable</string>
     <string name="vpn_visibility_note">Android does not allow fully hiding the fact that a VPN is in use from other apps without root access. The app removes common leaks (DNS, IPv6, an open local proxy), but the presence of the VPN interface itself is visible to other apps.</string>
     <string name="import_title">Import</string>
-    <string name="import_dialog_text">Paste a subscription link, a YAML/JSON config, or several share links. An http(s) link will be saved as a subscription.</string>
+    <string name="import_dialog_text">Paste a subscription link, a YAML/JSON config, or several share links. An https:// link will be saved as a subscription.</string>
     <string name="import_link_label">Link or config</string>
     <string name="import_action">Import</string>
     <string name="update_available">Version %1$s is available</string>

@@ -10,10 +10,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            storeFile = file("release.keystore")
+            storePassword = "rknvpn2026"
+            keyAlias = "rknvpn"
+            keyPassword = "rknvpn2026"
         }
     }
 
@@ -21,8 +21,8 @@ android {
         applicationId = "app.rkn.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 13
-        versionName = "1.0.12"
+        versionCode = 14
+        versionName = "1.0.13"
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
         buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")
@@ -32,8 +32,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            // Подписываем debug-ключом, чтобы APK из CI сразу устанавливался.
-            // Для публикации замените на собственный keystore (см. README).
+            // Подписывается release-ключом, чтобы APK из CI сразу устанавливался.
             signingConfig = signingConfigs.getByName("release")
         }
     }
