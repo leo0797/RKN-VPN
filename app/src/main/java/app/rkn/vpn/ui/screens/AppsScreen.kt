@@ -69,6 +69,7 @@ fun AppsScreen(
     var onlySelected by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
+    val appCollator = remember { Collator.getInstance(Locale("ru", "RU")) }
 
     LaunchedEffect(includeSystem) {
         apps = null
@@ -76,13 +77,19 @@ fun AppsScreen(
     }
 
     val list = apps
-    val filtered = remember(list, query, onlySelected, state.splitApps) {
-        (list ?: emptyList()).filter { app ->
-            (!onlySelected || app.packageName in state.splitApps) &&
-                (query.isBlank() ||
-                    app.label.contains(query, ignoreCase = true) ||
-                    app.packageName.contains(query, ignoreCase = true))
-        }
+    val filtered = remember(list, query, onlySelected, state.splitApps, appCollator) {
+        (list ?: emptyList())
+            .filter { app ->
+                (!onlySelected || app.packageName in state.splitApps) &&
+                    (query.isBlank() ||
+                        app.label.contains(query, ignoreCase = true) ||
+                        app.packageName.contains(query, ignoreCase = true))
+            }
+            // Сначала отмеченные приложения, внутри каждой группы — по алфавиту.
+            .sortedWith(
+                compareByDescending<InstalledApp> { it.packageName in state.splitApps }
+                    .thenBy(appCollator) { it.label }
+            )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {

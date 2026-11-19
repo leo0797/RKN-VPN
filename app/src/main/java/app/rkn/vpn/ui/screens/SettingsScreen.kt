@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.app.Activity
 import android.content.Intent
@@ -52,6 +53,9 @@ import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.vpn.VpnController
 import kotlinx.coroutines.launch
 
+private const val IMPORT_SUBSCRIPTION = "subscription"
+private const val IMPORT_CONFIG = "config"
+
 @Composable
 fun SettingsScreen(
     state: AppState,
@@ -62,9 +66,20 @@ fun SettingsScreen(
     var url by remember(state.subscriptionUrl) { mutableStateOf(state.subscriptionUrl) }
     var logs by remember { mutableStateOf<String?>(null) }
     var fileMessage by remember { mutableStateOf<String?>(null) }
-    var showImport by remember { mutableStateOf(false) }
+    var subscriptionMessage by remember { mutableStateOf<String?>(null) }
+    var importMode by remember { mutableStateOf<String?>(null) }
     var importText by remember { mutableStateOf("") }
+    var importError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    fun isSubscriptionUrl(value: String): Boolean =
+        value.startsWith("http://", true) || value.startsWith("https://", true)
+
+    fun openImport(mode: String) {
+        importMode = mode
+        importText = ""
+        importError = null
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -109,8 +124,13 @@ fun SettingsScreen(
         if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
         val value = result.data?.getStringExtra(QrScanActivity.EXTRA_SCAN_RESULT)
         if (value.isNullOrBlank()) return@rememberLauncherForActivityResult
-        val isUrl = value.startsWith("http://", true) || value.startsWith("https://", true)
-        if (isUrl) onSaveSubscription(value.trim()) else VpnController.importText(value.trim())
+        val trimmed = value.trim()
+        if (isSubscriptionUrl(trimmed)) {
+            subscriptionMessage = null
+            onSaveSubscription(trimmed)
+        } else {
+            subscriptionMessage = context.getString(R.string.error_qr_not_subscription)
+        }
     }
 
     var update by remember { mutableStateOf<Release?>(null) }
@@ -156,11 +176,50 @@ fun SettingsScreen(
                         onClick = { onSaveSubscription(url.trim()) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(stringResource(R.string.save_and_refresh))
+                        SingleLineLabel(
+                            text = stringResource(R.string.save_and_refresh),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                     OutlinedButton(onClick = onRefresh, enabled = !state.refreshing) {
-                        Text(stringResource(R.string.refresh))
+                        SingleLineLabel(
+                            text = stringResource(R.string.refresh),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { openImport(IMPORT_SUBSCRIPTION) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.paste),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { qrLauncher.launch(Intent(context, QrScanActivity::class.java)) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.qr_subscription),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                if (!subscriptionMessage.isNullOrBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = subscriptionMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
                 if (state.subscription.updatedAt > 0) {
                     Spacer(Modifier.height(8.dp))
@@ -184,29 +243,35 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            onClick = { showImport = true },
+                            onClick = { openImport(IMPORT_CONFIG) },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(stringResource(R.string.paste))
-                        }
-                        OutlinedButton(
-                            onClick = { qrLauncher.launch(Intent(context, QrScanActivity::class.java)) },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(stringResource(R.string.qr_code))
+                            SingleLineLabel(
+                                text = stringResource(R.string.import_config),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                         OutlinedButton(
                             onClick = { importLauncher.launch(arrayOf("*/*")) },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(stringResource(R.string.from_file))
+                            SingleLineLabel(
+                                text = stringResource(R.string.from_file),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                     OutlinedButton(
                         onClick = { exportLauncher.launch("rkn-vpn-backup.json") },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.save_backup))
+                        SingleLineLabel(
+                            text = stringResource(R.string.save_backup),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
                 if (!fileMessage.isNullOrBlank()) {
@@ -229,7 +294,14 @@ fun SettingsScreen(
                         FilterChip(
                             selected = state.theme == value,
                             onClick = { onThemeChange(value) },
-                            label = { SingleLineLabel(text = label) }
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            label = {
+                                SingleLineLabel(
+                                    text = label,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         )
                     }
                 }
@@ -243,7 +315,14 @@ fun SettingsScreen(
                         FilterChip(
                             selected = state.language == value,
                             onClick = { VpnController.setLanguage(value) },
-                            label = { SingleLineLabel(text = label) }
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            label = {
+                                SingleLineLabel(
+                                    text = label,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         )
                     }
                 }
@@ -346,53 +425,90 @@ fun SettingsScreen(
         Spacer(Modifier.height(24.dp))
     }
 
-    if (showImport) {
+    val mode = importMode
+    if (mode != null) {
+        val subscriptionMode = mode == IMPORT_SUBSCRIPTION
         AlertDialog(
-            onDismissRequest = { showImport = false },
-            title = { Text(stringResource(R.string.import_title)) },
+            onDismissRequest = { importMode = null },
+            title = {
+                Text(
+                    stringResource(
+                        if (subscriptionMode) R.string.subscription_paste_title
+                        else R.string.import_title
+                    )
+                )
+            },
             text = {
                 Column {
                     Text(
-                        text = stringResource(R.string.import_dialog_text),
+                        text = stringResource(
+                            if (subscriptionMode) R.string.subscription_paste_text
+                            else R.string.import_dialog_text
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
                         value = importText,
-                        onValueChange = { importText = it },
+                        onValueChange = {
+                            importText = it
+                            importError = null
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 140.dp),
-                        label = { Text(stringResource(R.string.import_link_label)) },
+                            .heightIn(min = if (subscriptionMode) 56.dp else 140.dp),
+                        label = {
+                            Text(
+                                stringResource(
+                                    if (subscriptionMode) R.string.subscription_paste_label
+                                    else R.string.import_link_label
+                                )
+                            )
+                        },
+                        singleLine = subscriptionMode,
                         shape = RoundedCornerShape(14.dp)
                     )
+                    if (!importError.isNullOrBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = importError.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         val value = importText.trim()
-                        val isUrl = value.startsWith("http://", true) ||
-                            value.startsWith("https://", true)
-                        val ok = if (isUrl) {
+                        if (subscriptionMode) {
+                            if (!isSubscriptionUrl(value)) {
+                                importError = context.getString(R.string.error_not_subscription_link)
+                                return@TextButton
+                            }
+                            subscriptionMessage = null
                             onSaveSubscription(value)
-                            true
-                        } else {
-                            VpnController.importText(value)
+                        } else if (!VpnController.importText(value)) {
+                            return@TextButton
                         }
-                        if (ok) {
-                            showImport = false
-                            importText = ""
-                        }
+                        importMode = null
+                        importText = ""
+                        importError = null
                     },
                     enabled = importText.isNotBlank()
                 ) {
-                    Text(stringResource(R.string.import_action))
+                    Text(
+                        stringResource(
+                            if (subscriptionMode) R.string.subscription_paste_action
+                            else R.string.import_action
+                        )
+                    )
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImport = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { importMode = null }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
