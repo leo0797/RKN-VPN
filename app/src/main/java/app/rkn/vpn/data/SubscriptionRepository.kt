@@ -54,43 +54,50 @@ class SubscriptionRepository(private val prefs: Prefs) {
     )
 
     private fun request(url: String): Response {
-        var current = url
-        var lastError: Exception? = null
-        for (attempt in 0..5) {
-            try {
-                val parsed = URL(current)
-                // Только http/https: file:, jar: и прочие схемы не должны
-                // открываться по ссылке из настроек.
-                if (parsed.protocol?.lowercase() !in ALLOWED_SCHEMES) {
-                    error("Поддерживаются только ссылки http:// и https://")
-                }
-                val conn = (parsed.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15_000
-                    readTimeout = 30_000
-                    instanceFollowRedirects = false
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", USER_AGENT)
-                    setRequestProperty("Accept", "*/*")
-                    setRequestProperty("Accept-Encoding", "identity")
-                    setRequestProperty("x-hwid", prefs.hwid)
-                    setRequestProperty("x-device-os", "Android")
-                    setRequestProperty("x-ver-os", Build.VERSION.RELEASE ?: "unknown")
-                    setRequestProperty(
-                        "x-device-model",
-                        listOf(Build.MANUFACTURER, Build.MODEL)
-                            .filter { it.isNotBlank() }
-                            .joinToString(" ")
-                            .trim()
-                    )
-                }
+        var current = URL(url)
+        require(current.protocol.equals("https", ignoreCase = true)) {
+            "Поддерживаются только HTTPS-ссылки на подписку"
+        }
 
+        repeat(MAX_REDIRECTS + 1) { redirectCount ->
+            val conn = (current.openConnection() as HttpURLConnection).apply {
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = READ_TIMEOUT_MS
+                instanceFollowRedirects = false
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", USER_AGENT)
+                setRequestProperty("Accept", "*/*")
+                setRequestProperty("Accept-Encoding", "identity")
+                // HWID и device metadata отправляются только исходному HTTPS origin.
+                setRequestProperty("x-hwid", prefs.hwid)
+                setRequestProperty("x-device-os", "Android")
+                setRequestProperty("x-ver-os", Build.VERSION.RELEASE ?: "unknown")
+                setRequestProperty(
+                    "x-device-model",
+                    listOf(Build.MANUFACTURER, Build.MODEL)
+                        .filter { it.isNotBlank() }
+                        .joinToString(" ")
+                        .trim()
+                )
+            }
+
+            try {
                 val code = conn.responseCode
                 if (code in 300..399) {
                     val location = conn.getHeaderField("Location")
-                    conn.disconnect()
-                    if (location.isNullOrBlank()) error("Редирект без Location")
-                    current = URL(URL(current), location).toString()
-                    continue
+                        ?: error("Редирект без Location")
+                    require(redirectCount < MAX_REDIRECTS) {
+                        "Превышено максимальное количество редиректов"
+                    }
+                    val next = URL(current, location)
+                    require(next.protocol.equals("https", ignoreCase = true) &&
+                        next.host.equals(current.host, ignoreCase = true) &&
+                        effectivePort(next) == effectivePort(current)
+                    ) {
+                        "Редирект на другой HTTPS-хост запрещён"
+                    }
+                    current = next
+                    return@repeat
                 }
 
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
@@ -98,23 +105,39 @@ class SubscriptionRepository(private val prefs: Prefs) {
                     val decoded = if (conn.getHeaderField("Content-Encoding")
                             ?.contains("gzip", ignoreCase = true) == true
                     ) GZIPInputStream(input) else input
-                    decoded.use { readAll(it) }
+                    decoded.use { readBounded(it) }
                 }.orEmpty()
 
                 val headers = buildMap {
                     conn.headerFields.forEach { (key, values) ->
-                        if (key != null && values != null) {
-                            put(key.lowercase(), values.joinToString(", "))
-                        }
+                        if (key != null && values != null) put(key.lowercase(), values.joinToString(", "))
                     }
                 }
-                conn.disconnect()
                 return Response(code, body, headers)
-            } catch (e: Exception) {
-                lastError = e
+            } finally {
+                conn.disconnect()
             }
         }
-        error("Не удалось загрузить подписку: ${lastError?.message ?: "неизвестная ошибка"}")
+        error("Превышено максимальное количество редиректов")
+    }
+
+    private fun effectivePort(url: URL): Int =
+        if (url.port >= 0) url.port else 443
+
+    private fun readBounded(stream: java.io.InputStream): String {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var total = 0
+        while (true) {
+            val read = stream.read(buffer)
+            if (read < 0) break
+            total += read
+            require(total <= MAX_RESPONSE_BYTES) {
+                "Ответ подписки превышает допустимый размер"
+            }
+            out.write(buffer, 0, read)
+        }
+        return out.toString(Charsets.UTF_8.name()).removePrefix("\uFEFF")
     }
 
     private fun readAll(stream: java.io.InputStream): String {
@@ -217,7 +240,7 @@ class SubscriptionRepository(private val prefs: Prefs) {
     }
 
     companion object {
-        private val ALLOWED_SCHEMES = setOf("http", "https")
+        private const val MAX_REDIRECTS = 5\n        private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024\n        private const val CONNECT_TIMEOUT_MS = 15_000\n        private const val READ_TIMEOUT_MS = 30_000
         const val USER_AGENT = "RKN-VPN/1.0 (Android) mihomo/1.19.34"
     }
 }
