@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.rkn.vpn.R
+import app.rkn.vpn.core.RoutingPresets
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.RoutingRule
 import app.rkn.vpn.data.RuleTarget
@@ -68,6 +69,7 @@ fun RoutingScreen(
     onModeChange: (String) -> Unit,
     onLanDirectChange: (Boolean) -> Unit,
     onAutoSwitchChange: (Boolean) -> Unit,
+    onPresetChange: (String, Boolean) -> Unit,
     onAddRule: (RoutingRule) -> Unit,
     onDeleteRule: (String) -> Unit
 ) {
@@ -130,6 +132,20 @@ fun RoutingScreen(
                         checked = state.autoSwitch,
                         onChange = onAutoSwitchChange
                     )
+                }
+            }
+
+            item {
+                SectionCard(title = stringResource(R.string.presets_title)) {
+                    RoutingPresets.ALL.forEach { preset ->
+                        LabeledSwitch(
+                            title = stringResource(preset.nameRes),
+                            subtitle = stringResource(preset.descriptionRes) +
+                                " · " + stringResource(R.string.preset_count, preset.domains.size),
+                            checked = preset.id in state.activePresets,
+                            onChange = { onPresetChange(preset.id, it) }
+                        )
+                    }
                 }
             }
 

@@ -29,6 +29,8 @@ object ConfigBuilder {
         val rules: List<RoutingRule>,
         val routingMode: String,
         val lanDirect: Boolean,
+        /** Включённые пресеты разворачиваются в DOMAIN-SUFFIX правила. */
+        val presets: Set<String> = emptySet(),
         // Остальные узлы добавляются в конфиг, чтобы API mihomo мог проверить
         // их реальную доступность, не переключая текущее подключение.
         val allNodes: List<ProxyNode> = emptyList()
@@ -56,8 +58,13 @@ object ConfigBuilder {
 
         val rules = JSONArray()
         if (params.routingMode != "global") {
+            // Свои правила идут первыми и перекрывают пресеты: в Clash
+            // побеждает первое совпадение.
             params.rules.forEach { rule ->
                 if (isValidRule(rule)) rules.put(rule.toClashRule())
+            }
+            RoutingPresets.rulesFor(RoutingPresets.knownIds(params.presets)).forEach {
+                rules.put(it.toClashRule())
             }
             if (params.lanDirect) {
                 LAN_RULES.forEach { rules.put(it) }

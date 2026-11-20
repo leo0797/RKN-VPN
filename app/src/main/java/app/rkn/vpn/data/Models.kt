@@ -82,6 +82,7 @@ data class AppState(
     val corePresent: Boolean = false,
     val routingMode: String = "rules",
     val lanDirect: Boolean = true,
+    val activePresets: Set<String> = emptySet(),
     val splitEnabled: Boolean = false,
     val splitApps: Set<String> = emptySet(),
     val checkUrl: String = Prefs.DEFAULT_CHECK_URL,

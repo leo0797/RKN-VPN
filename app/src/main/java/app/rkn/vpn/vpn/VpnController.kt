@@ -18,6 +18,7 @@ import app.rkn.vpn.core.LocalProxy
 import app.rkn.vpn.core.MihomoApi
 import app.rkn.vpn.core.NodeSelector
 import app.rkn.vpn.core.Ping
+import app.rkn.vpn.core.RoutingPresets
 import app.rkn.vpn.core.Strings
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.Prefs
@@ -108,6 +109,7 @@ object VpnController {
             rules = p.rules,
             routingMode = p.routingMode,
             lanDirect = p.lanDirect,
+            activePresets = p.activePresets,
             splitEnabled = p.splitEnabled,
             splitApps = p.splitApps,
             checkUrl = p.checkUrl,
@@ -546,7 +548,14 @@ object VpnController {
 
     suspend fun refreshSubscriptionAwait(): Boolean = refreshSubscriptionInternal(true)
 
-    private suspend fun refreshSubscriptionInternal(showToast: Boolean): Boolean {
+    /** Фоновая проверка: не показывает тост и не портит UI-состояние ошибкой. */
+    suspend fun refreshSubscriptionBackground(): Boolean =
+        refreshSubscriptionInternal(showToast = false, silent = true)
+
+    private suspend fun refreshSubscriptionInternal(
+        showToast: Boolean,
+        silent: Boolean = false
+    ): Boolean {
         val p = requirePrefs()
         val url = p.subscriptionUrl
         if (url.isBlank()) {
@@ -591,7 +600,11 @@ object VpnController {
                         _state.update {
                             it.copy(
                                 refreshing = false,
-                                error = e.message ?: text(R.string.error_refresh_failed)
+                                error = if (silent) {
+                                    null
+                                } else {
+                                    e.message ?: text(R.string.error_refresh_failed)
+                                }
                             )
                         }
                         false
@@ -669,6 +682,7 @@ object VpnController {
             .put("rules", rulesToJson(p.rules))
             .put("routingMode", p.routingMode)
             .put("lanDirect", p.lanDirect)
+            .put("activePresets", JSONArray(p.activePresets))
             .put("splitEnabled", p.splitEnabled)
             .put("splitApps", JSONArray(p.splitApps))
             .put("theme", p.theme)
@@ -694,6 +708,10 @@ object VpnController {
             p.rules = rulesFromJson(obj.optString("rules"))
             p.routingMode = obj.optString("routingMode", "rules")
             p.lanDirect = obj.optBoolean("lanDirect", true)
+            val presets = JSONArray(obj.optString("activePresets", "[]"))
+            p.activePresets = RoutingPresets.knownIds(
+                (0 until presets.length()).map { presets.optString(it) }
+            )
             p.splitEnabled = obj.optBoolean("splitEnabled", false)
             val apps = JSONArray(obj.optString("splitApps", "[]"))
             p.splitApps = (0 until apps.length()).mapTo(HashSet()) { apps.optString(it) }
@@ -725,6 +743,7 @@ object VpnController {
                 rules = p.rules,
                 routingMode = p.routingMode,
                 lanDirect = p.lanDirect,
+                activePresets = p.activePresets,
                 splitEnabled = p.splitEnabled,
                 splitApps = p.splitApps,
                 checkUrl = p.checkUrl,
@@ -766,6 +785,15 @@ object VpnController {
         val p = requirePrefs()
         p.lanDirect = enabled
         _state.update { it.copy(lanDirect = enabled) }
+        scheduleReconnect()
+    }
+
+    /** Включить/выключить готовый набор правил. */
+    fun setPreset(id: String, enabled: Boolean) {
+        if (RoutingPresets.byId(id) == null) return
+        val p = requirePrefs()
+        p.activePresets = if (enabled) p.activePresets + id else p.activePresets - id
+        _state.update { it.copy(activePresets = p.activePresets) }
         scheduleReconnect()
     }
 

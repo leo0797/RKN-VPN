@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -40,6 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -132,8 +140,18 @@ fun AppsScreen(
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.search_apps_hint)) },
+                label = { Text(stringResource(R.string.search_apps_hint)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotBlank()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.clear_search_cd)
+                            )
+                        }
+                    }
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp)
             )
@@ -159,6 +177,18 @@ fun AppsScreen(
                 ) {
                     Text(stringResource(R.string.reset))
                 }
+            }
+            Text(
+                text = stringResource(R.string.apps_sort_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (query.isNotBlank() || onlySelected) {
+                Text(
+                    text = stringResource(R.string.apps_found_count, filtered.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
@@ -210,18 +240,33 @@ fun AppsScreen(
 
 @Composable
 private fun AppRow(app: InstalledApp, checked: Boolean, onToggle: () -> Unit) {
+    val clickLabel = stringResource(
+        if (checked) R.string.app_action_unselect else R.string.app_action_select,
+        app.label
+    )
+    val stateLabel = stringResource(
+        if (checked) R.string.app_state_selected else R.string.app_state_not_selected
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle)
+            .clickable(onClick = onToggle, onClickLabel = clickLabel, role = Role.Checkbox)
+            // Одна озвучиваемая сущность на строку: имя, пакет и состояние.
+            // Иначе TalkBack читает отдельно букву аватара, имя, пакет и чекбокс.
+            .semantics(mergeDescendants = true) {
+                contentDescription = "${app.label}, ${app.packageName}"
+                stateDescription = stateLabel
+            }
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        LetterAvatar(
-            text = app.label,
-            seed = app.packageName.hashCode(),
-            size = 38
-        )
+        Box(modifier = Modifier.clearAndSetSemantics {}) {
+            LetterAvatar(
+                text = app.label,
+                seed = app.packageName.hashCode(),
+                size = 38
+            )
+        }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -239,7 +284,11 @@ private fun AppRow(app: InstalledApp, checked: Boolean, onToggle: () -> Unit) {
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Checkbox(checked = checked, onCheckedChange = null)
+        Checkbox(
+            checked = checked,
+            onCheckedChange = null,
+            modifier = Modifier.clearAndSetSemantics {}
+        )
     }
 }
 

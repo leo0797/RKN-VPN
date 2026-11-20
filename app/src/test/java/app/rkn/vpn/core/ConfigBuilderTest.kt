@@ -73,6 +73,23 @@ class ConfigBuilderTest {
         assertFalse(config.contains("fc00::/129"))
     }
 
+    @Test
+    fun presetRulesAreAddedOnlyInRulesMode() {
+        val node = LinkParser.parse(wsLink)!!
+        val withPreset = ConfigBuilder.build(
+            params(node).copy(presets = setOf("ru_direct"))
+        )
+        assertTrue(withPreset.contains("DOMAIN-SUFFIX,yandex.ru,DIRECT"))
+
+        val withoutPreset = ConfigBuilder.build(params(node).copy(presets = emptySet()))
+        assertFalse(withoutPreset.contains("DOMAIN-SUFFIX,yandex.ru,DIRECT"))
+
+        val global = ConfigBuilder.build(
+            params(node).copy(presets = setOf("ru_direct"), routingMode = "global")
+        )
+        assertFalse(global.contains("DOMAIN-SUFFIX,yandex.ru,DIRECT"))
+    }
+
     private fun vmessLink(json: String): String =
         "vmess://" + Base64.getEncoder().encodeToString(json.toByteArray(Charsets.UTF_8))
 

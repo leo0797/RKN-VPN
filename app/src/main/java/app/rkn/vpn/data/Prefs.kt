@@ -2,6 +2,7 @@ package app.rkn.vpn.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.rkn.vpn.core.RoutingPresets
 import java.security.SecureRandom
 
 /**
@@ -51,6 +52,15 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_LAN_DIRECT, true)
         set(value) = sp.edit().putBoolean(KEY_LAN_DIRECT, value).apply()
 
+    /** Включённые пресеты маршрутизации (см. RoutingPresets). */
+    var activePresets: Set<String>
+        get() = RoutingPresets.knownIds(
+            sp.getStringSet(KEY_ACTIVE_PRESETS, emptySet()) ?: emptySet()
+        )
+        set(value) = sp.edit().putStringSet(
+            KEY_ACTIVE_PRESETS, RoutingPresets.knownIds(value)
+        ).apply()
+
     // ---------- split tunneling ----------
 
     var splitEnabled: Boolean
@@ -93,6 +103,11 @@ class Prefs(context: Context) {
     var autoSwitch: Boolean
         get() = sp.getBoolean(KEY_AUTO_SWITCH, true)
         set(value) = sp.edit().putBoolean(KEY_AUTO_SWITCH, value).apply()
+
+    /** Первый запуск: объяснение разрешений и локального хранения данных. */
+    var onboardingShown: Boolean
+        get() = sp.getBoolean(KEY_ONBOARDING_SHOWN, false)
+        set(value) = sp.edit().putBoolean(KEY_ONBOARDING_SHOWN, value).apply()
 
     /** Однократное напоминание про системный Always-on VPN. */
     var killSwitchReminderShown: Boolean
@@ -146,6 +161,7 @@ class Prefs(context: Context) {
         private const val KEY_RULES = "rules"
         private const val KEY_MODE = "routing_mode"
         private const val KEY_LAN_DIRECT = "lan_direct"
+        private const val KEY_ACTIVE_PRESETS = "active_presets"
         private const val KEY_SPLIT_ENABLED = "split_enabled"
         private const val KEY_SPLIT_APPS = "split_apps"
         private const val KEY_THEME = "theme"
@@ -154,6 +170,7 @@ class Prefs(context: Context) {
         private const val KEY_CHECK_URL = "check_url"
         const val DEFAULT_CHECK_URL = "https://www.gstatic.com/generate_204"
         private const val KEY_AUTO_SWITCH = "auto_switch"
+        private const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
         private const val KEY_NOTIFICATION_PERMISSION = "notification_permission_requested"
         private const val KEY_VPN_WANTED = "vpn_wanted"

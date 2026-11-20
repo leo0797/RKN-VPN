@@ -158,7 +158,8 @@ class RknVpnService : VpnService() {
                             allNodes = prefs.nodes,
                             rules = prefs.rules,
                             routingMode = prefs.routingMode,
-                            lanDirect = prefs.lanDirect
+                            lanDirect = prefs.lanDirect,
+                            presets = prefs.activePresets
                         )
                     )
 

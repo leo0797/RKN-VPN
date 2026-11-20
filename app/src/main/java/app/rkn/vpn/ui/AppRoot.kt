@@ -29,14 +29,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.rkn.vpn.R
+import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.ui.screens.AppsScreen
 import app.rkn.vpn.ui.screens.HomeScreen
+import app.rkn.vpn.ui.screens.OnboardingScreen
 import app.rkn.vpn.ui.screens.RoutingScreen
 import app.rkn.vpn.ui.screens.ServersScreen
 import app.rkn.vpn.ui.screens.SettingsScreen
 import app.rkn.vpn.ui.theme.RknTheme
 import app.rkn.vpn.vpn.VpnController
+import app.rkn.vpn.work.RefreshWorker
 
 private data class NavItem(val labelRes: Int, val icon: Int)
 
@@ -61,12 +64,17 @@ fun AppRoot(onRequestConnect: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     val context = LocalContext.current
     val startLanguage = remember { state.language }
+    var showOnboarding by remember { mutableStateOf(!Prefs(context).onboardingShown) }
 
     LaunchedEffect(state.language) {
         if (state.language != startLanguage) (context as? Activity)?.recreate()
     }
 
-    LaunchedEffect(Unit) { VpnController.maybeAutoRefresh() }
+    LaunchedEffect(Unit) {
+        // Интервал мог измениться после обновления подписки — перепланируем.
+        runCatching { RefreshWorker.enqueue(context) }
+        VpnController.maybeAutoRefresh()
+    }
 
     LaunchedEffect(state.error) {
         val message = state.error ?: return@LaunchedEffect
@@ -87,6 +95,15 @@ fun AppRoot(onRequestConnect: () -> Unit) {
     BackHandler(enabled = tab != TAB_HOME) { tab = TAB_HOME }
 
     RknTheme(theme = state.theme) {
+        if (showOnboarding) {
+            OnboardingScreen(
+                onFinish = {
+                    Prefs(context).onboardingShown = true
+                    showOnboarding = false
+                }
+            )
+            return@RknTheme
+        }
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             snackbarHost = { SnackbarHost(snackbar) },
@@ -155,6 +172,7 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                         onModeChange = { VpnController.setRoutingMode(it) },
                         onLanDirectChange = { VpnController.setLanDirect(it) },
                         onAutoSwitchChange = { VpnController.setAutoSwitch(it) },
+                        onPresetChange = { id, enabled -> VpnController.setPreset(id, enabled) },
                         onAddRule = { VpnController.addRule(it) },
                         onDeleteRule = { VpnController.deleteRule(it) }
                     )

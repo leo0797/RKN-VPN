@@ -29,14 +29,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -53,6 +56,7 @@ import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SectionCard
 import app.rkn.vpn.ui.components.SingleLineLabel
+import app.rkn.vpn.util.Diagnostics
 import app.rkn.vpn.vpn.VpnController
 import kotlinx.coroutines.launch
 
@@ -70,12 +74,14 @@ fun SettingsScreen(
     var checkUrl by remember(state.checkUrl) { mutableStateOf(state.checkUrl) }
     var logs by remember { mutableStateOf<String?>(null) }
     var fileMessage by remember { mutableStateOf<String?>(null) }
+    var diagnosticsMessage by remember { mutableStateOf<String?>(null) }
     var subscriptionMessage by remember { mutableStateOf<String?>(null) }
     var importMode by remember { mutableStateOf<String?>(null) }
     var importText by remember { mutableStateOf("") }
     var importError by remember { mutableStateOf<String?>(null) }
     var confirmBackupExport by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
 
     fun isSubscriptionUrl(value: String): Boolean =
         value.startsWith("http://", true) || value.startsWith("https://", true)
@@ -433,6 +439,41 @@ fun SettingsScreen(
                     OutlinedButton(onClick = { VpnController.clearLogs() }) {
                         Text(stringResource(R.string.clear))
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val report = Diagnostics.buildReport(
+                                state = state,
+                                logs = VpnController.readLogs(),
+                                appVersion = BuildConfig.VERSION_NAME,
+                                androidVersion = Build.VERSION.RELEASE,
+                                device = "${Build.MANUFACTURER} ${Build.MODEL}"
+                            )
+                            clipboardManager.setText(AnnotatedString(report))
+                            diagnosticsMessage = context.getString(R.string.diagnostics_copied)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.copy_diagnostics),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(R.string.diagnostics_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (!diagnosticsMessage.isNullOrBlank()) {
+                    Text(
+                        text = diagnosticsMessage.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 

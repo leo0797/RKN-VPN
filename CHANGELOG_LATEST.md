@@ -1,11 +1,13 @@
-Что нового в 1.0.19:
+Что нового в 1.0.20:
 
-• Диалог разрешения уведомлений больше не появляется при первом запуске: он показывается после первого успешного подключения и только один раз.
-• Сообщения об ошибках ядра mihomo переведены на RU/EN. В английском интерфейсе больше не встречается русский текст, а к сообщению прикладывается лог ядра.
-• Добавлены SECURITY.md с правилами сообщения об уязвимостях и Dependabot для еженедельного обновления Gradle-зависимостей и GitHub Actions.
+• Готовые наборы маршрутизации: российские сервисы и центры обновлений идут напрямую, мимо VPN. Свои правила по-прежнему имеют приоритет.
+• Первый запуск коротко объясняет разрешения и хранение данных. В диагностике можно скопировать отчёт — без ссылки на подписку и HWID.
+• Выбор приложений для раздельного туннелирования доступен скринридеру: поиск с очисткой, описание сортировки и состояние каждого приложения.
+• Подписка обновляется в фоне по расписанию через WorkManager, даже если приложение не открывают.
 
-What's new in 1.0.19:
+What's new in 1.0.20:
 
-• The notification permission dialog no longer appears on first launch: it is shown after the first successful connection, once.
-• mihomo core errors are localized in RU/EN. No more Russian text in the English UI, and the core log is attached to the message.
-• Added SECURITY.md with vulnerability reporting rules and Dependabot for weekly Gradle and GitHub Actions updates.
+• Ready-made routing presets: Russian services and update servers go directly, bypassing the VPN. Custom rules still take priority.
+• First launch briefly explains permissions and data storage. Diagnostics can copy a report without the subscription link or HWID.
+• Split-tunnel app picker is screen-reader friendly: search with clear, sort explanation and each app's state.
+• Subscriptions refresh in the background on a schedule via WorkManager, even when the app is not opened.
