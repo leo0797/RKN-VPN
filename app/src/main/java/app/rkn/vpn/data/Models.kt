@@ -112,6 +112,7 @@ data class AppState(
     val dnsMode: String = Prefs.DNS_AUTO,
     val dnsCustom: String = "",
     val autoSwitch: Boolean = true,
+    val connectOnLaunch: Boolean = false,
     val showKillSwitchStatus: Boolean = true,
     val killSwitchStatus: SystemKillSwitch.Status = SystemKillSwitch.Status.UNKNOWN,
     val theme: String = "system",

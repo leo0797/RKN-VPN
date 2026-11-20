@@ -253,6 +253,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_AUTO_SWITCH, true)
         set(value) = sp.edit().putBoolean(KEY_AUTO_SWITCH, value).apply()
 
+    /** Подключаться при запуске приложения (по умолчанию выкл.). */
+    var connectOnLaunch: Boolean
+        get() = sp.getBoolean(KEY_CONNECT_ON_LAUNCH, false)
+        set(value) = sp.edit().putBoolean(KEY_CONNECT_ON_LAUNCH, value).apply()
+
     /** Первый запуск: объяснение разрешений и локального хранения данных. */
     var onboardingShown: Boolean
         get() = sp.getBoolean(KEY_ONBOARDING_SHOWN, false)
@@ -340,6 +345,7 @@ class Prefs(context: Context) {
         private const val KEY_DNS_MODE = "dns_mode"
         private const val KEY_DNS_CUSTOM = "dns_custom"
         private const val KEY_AUTO_SWITCH = "auto_switch"
+        private const val KEY_CONNECT_ON_LAUNCH = "connect_on_launch"
         private const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
         private const val KEY_SHOW_KILL_SWITCH_STATUS = "show_kill_switch_status"

@@ -338,4 +338,8 @@
     <string name="filter_all">Все</string>
     <string name="favorite_add">В избранное</string>
     <string name="favorite_remove">Убрать из избранного</string>
+
+    <!-- Подключение при запуске -->
+    <string name="connect_on_launch">Подключаться при запуске приложения</string>
+    <string name="connect_on_launch_hint">Сработает, если выбран узел и уже выдано разрешение VPN. Для защиты до открытия приложения включите системный Always-on VPN в настройках Android.</string>
 </resources>

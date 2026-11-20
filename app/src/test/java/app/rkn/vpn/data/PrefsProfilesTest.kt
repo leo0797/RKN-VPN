@@ -96,4 +96,14 @@ class PrefsProfilesTest {
     private fun Prefs.switchToProfileForTest(id: String) {
         this.activeProfileId = id
     }
+
+    @Test
+    fun storesConnectOnLaunchSetting() {
+        val prefs = Prefs(context)
+        assertEquals(false, prefs.connectOnLaunch)
+        prefs.connectOnLaunch = true
+        assertEquals(true, prefs.connectOnLaunch)
+        val prefs2 = Prefs(context)
+        assertEquals(true, prefs2.connectOnLaunch)
+    }
 }

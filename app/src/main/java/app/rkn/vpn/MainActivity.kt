@@ -43,7 +43,11 @@ class MainActivity : BaseActivity() {
             AppRoot(onRequestConnect = { requestVpnPermission() })
         }
         observeFirstConnection()
-        if (savedInstanceState == null) handleIntent(intent)
+        if (savedInstanceState == null) {
+            val hadAutoConnectExtra = intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) == true
+            handleIntent(intent)
+            if (!hadAutoConnectExtra) maybeAutoConnectOnLaunch()
+        }
     }
 
     /**
@@ -127,6 +131,22 @@ class MainActivity : BaseActivity() {
             return true
         }
         return VpnController.importText(value)
+    }
+
+    /**
+     * Автоподключение при запуске приложения (если включено в настройках):
+     * только при наличии выбранного узла и уже выданном VPN-разрешении.
+     */
+    private fun maybeAutoConnectOnLaunch() {
+        val prefs = Prefs(this)
+        if (!prefs.connectOnLaunch) return
+        val state = VpnController.state.value
+        if (state.connected || state.connecting) return
+        if (state.selectedNode == null) return
+        val prepareIntent = runCatching { VpnService.prepare(this) }.getOrNull()
+        if (prepareIntent == null) {
+            VpnController.connect(this)
+        }
     }
 
     private fun requestVpnPermission() {

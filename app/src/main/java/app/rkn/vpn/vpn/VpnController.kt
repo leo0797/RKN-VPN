@@ -124,6 +124,7 @@ object VpnController {
             dnsMode = p.dnsMode,
             dnsCustom = p.dnsCustom,
             autoSwitch = p.autoSwitch,
+            connectOnLaunch = p.connectOnLaunch,
             showKillSwitchStatus = p.showKillSwitchStatus,
             killSwitchStatus = SystemKillSwitch.status(ctx),
             theme = p.theme,
@@ -650,6 +651,12 @@ object VpnController {
         _state.update { it.copy(autoSwitch = enabled) }
     }
 
+    fun setConnectOnLaunch(enabled: Boolean) {
+        val p = requirePrefs()
+        p.connectOnLaunch = enabled
+        _state.update { it.copy(connectOnLaunch = enabled) }
+    }
+
     /** Карточка статуса kill switch на главном экране: скрыть или вернуть. */
     fun setKillSwitchCardVisible(visible: Boolean) {
         val p = requirePrefs()
@@ -860,6 +867,7 @@ object VpnController {
             .put("dnsMode", p.dnsMode)
             .put("dnsCustom", p.dnsCustom)
             .put("autoSwitch", p.autoSwitch)
+            .put("connectOnLaunch", p.connectOnLaunch)
             .toString(2)
     }
 
@@ -923,6 +931,7 @@ object VpnController {
             if (obj.has("dnsMode")) p.dnsMode = obj.optString("dnsMode", Prefs.DNS_AUTO)
             if (obj.has("dnsCustom")) p.dnsCustom = obj.optString("dnsCustom", "")
             p.autoSwitch = if (obj.has("autoSwitch")) obj.optBoolean("autoSwitch", true) else true
+            p.connectOnLaunch = if (obj.has("connectOnLaunch")) obj.optBoolean("connectOnLaunch", false) else false
         }
         if (restored.isFailure) {
             _state.update {
@@ -945,6 +954,7 @@ object VpnController {
                 dnsMode = p.dnsMode,
                 dnsCustom = p.dnsCustom,
                 autoSwitch = p.autoSwitch,
+                connectOnLaunch = p.connectOnLaunch,
                 theme = p.theme,
                 language = p.language,
                 latencies = emptyMap(),

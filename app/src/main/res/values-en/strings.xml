@@ -338,4 +338,8 @@
     <string name="filter_all">All</string>
     <string name="favorite_add">Add to favorites</string>
     <string name="favorite_remove">Remove from favorites</string>
+
+    <!-- Connect on launch -->
+    <string name="connect_on_launch">Connect when the app launches</string>
+    <string name="connect_on_launch_hint">Works only if a node is selected and VPN permission is already granted. For protection before opening the app, enable system Always-on VPN in Android settings.</string>
 </resources>

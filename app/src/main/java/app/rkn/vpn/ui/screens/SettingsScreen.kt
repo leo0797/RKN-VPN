@@ -480,6 +480,17 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledSwitch(
+                    title = stringResource(R.string.connect_on_launch),
+                    checked = state.connectOnLaunch,
+                    onChange = { VpnController.setConnectOnLaunch(it) }
+                )
+                Text(
+                    text = stringResource(R.string.connect_on_launch_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledSwitch(
                     title = stringResource(R.string.show_kill_switch_status),
                     checked = state.showKillSwitchStatus,
                     onChange = { VpnController.setKillSwitchCardVisible(it) }
