@@ -1,13 +1,11 @@
-Что нового в 1.0.20:
+Что нового в 1.0.21:
 
-• Готовые наборы маршрутизации: российские сервисы и центры обновлений идут напрямую, мимо VPN. Свои правила по-прежнему имеют приоритет.
-• Первый запуск коротко объясняет разрешения и хранение данных. В диагностике можно скопировать отчёт — без ссылки на подписку и HWID.
-• Выбор приложений для раздельного туннелирования доступен скринридеру: поиск с очисткой, описание сортировки и состояние каждого приложения.
-• Подписка обновляется в фоне по расписанию через WorkManager, даже если приложение не открывают.
+• Включены R8-минификация и сжатие ресурсов: APK стал примерно на 20% меньше.
+• Сохранены важные для работы части: класс фонового обновления подписки, JNI-обёртки hev-socks5-tunnel и читаемые номера строк в логах.
+• Подпись и набор разрешений не изменились.
 
-What's new in 1.0.20:
+What's new in 1.0.21:
 
-• Ready-made routing presets: Russian services and update servers go directly, bypassing the VPN. Custom rules still take priority.
-• First launch briefly explains permissions and data storage. Diagnostics can copy a report without the subscription link or HWID.
-• Split-tunnel app picker is screen-reader friendly: search with clear, sort explanation and each app's state.
-• Subscriptions refresh in the background on a schedule via WorkManager, even when the app is not opened.
+• R8 minification and resource shrinking are enabled: the APK is about 20% smaller.
+• Kept what must stay: the background subscription worker, hev-socks5-tunnel JNI wrappers and readable line numbers in logs.
+• The signing certificate and permission set are unchanged.
