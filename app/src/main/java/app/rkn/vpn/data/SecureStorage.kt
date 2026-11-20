@@ -18,7 +18,10 @@ import javax.crypto.spec.GCMParameterSpec
  * же чтении перезаписываются в зашифрованном виде — миграция не требует от
  * пользователя повторно вводить подписку.
  */
-internal class SecureStorage(private val sp: SharedPreferences) {
+internal class SecureStorage(
+    private val sp: SharedPreferences,
+    private val onCorruption: () -> Unit = {}
+) {
 
     fun get(key: String): String? {
         val raw = sp.getString(key, null) ?: return null
@@ -30,7 +33,10 @@ internal class SecureStorage(private val sp: SharedPreferences) {
         }
 
         val decrypted = decrypt(raw.removePrefix(PREFIX))
-        if (decrypted == null) sp.edit().remove(key).apply()
+        if (decrypted == null) {
+            onCorruption()
+            return null
+        }
         return decrypted
     }
 

@@ -106,4 +106,20 @@ class PrefsProfilesTest {
         val prefs2 = Prefs(context)
         assertEquals(true, prefs2.connectOnLaunch)
     }
+
+    @Test
+    fun keepsCorruptedSecureValueAndSetsFlag() {
+        val prefs = Prefs(context)
+        val profileId = prefs.activeProfileId ?: Prefs.DEFAULT_PROFILE_ID
+        val key = "sub_url_$profileId"
+        val sp = context.getSharedPreferences("rkn_vpn_prefs", Context.MODE_PRIVATE)
+        sp.edit().putString(key, "enc:invalid-payload").commit()
+        prefs.secureDataCorrupted = false
+
+        val value = prefs.profileUrl(profileId)
+
+        assertEquals("", value)
+        assertEquals(true, prefs.secureDataCorrupted)
+        assertEquals("enc:invalid-payload", sp.getString(key, null))
+    }
 }

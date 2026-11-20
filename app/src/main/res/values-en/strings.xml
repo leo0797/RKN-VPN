@@ -342,4 +342,7 @@
     <!-- Connect on launch -->
     <string name="connect_on_launch">Connect when the app launches</string>
     <string name="connect_on_launch_hint">Works only if a node is selected and VPN permission is already granted. For protection before opening the app, enable system Always-on VPN in Android settings.</string>
+
+    <!-- Corrupted secure data -->
+    <string name="subscription_data_unavailable">Subscription data is unavailable. Add the link again</string>
 </resources>

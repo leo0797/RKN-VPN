@@ -342,4 +342,7 @@
     <!-- Подключение при запуске -->
     <string name="connect_on_launch">Подключаться при запуске приложения</string>
     <string name="connect_on_launch_hint">Сработает, если выбран узел и уже выдано разрешение VPN. Для защиты до открытия приложения включите системный Always-on VPN в настройках Android.</string>
+
+    <!-- Повреждённые защищённые данные -->
+    <string name="subscription_data_unavailable">Данные подписки недоступны. Добавьте ссылку заново</string>
 </resources>

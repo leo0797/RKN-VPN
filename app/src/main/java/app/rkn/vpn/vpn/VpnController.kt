@@ -125,6 +125,7 @@ object VpnController {
             dnsCustom = p.dnsCustom,
             autoSwitch = p.autoSwitch,
             connectOnLaunch = p.connectOnLaunch,
+            secureDataCorrupted = p.secureDataCorrupted,
             showKillSwitchStatus = p.showKillSwitchStatus,
             killSwitchStatus = SystemKillSwitch.status(ctx),
             theme = p.theme,
@@ -657,6 +658,14 @@ object VpnController {
         _state.update { it.copy(connectOnLaunch = enabled) }
     }
 
+    fun clearSecureDataCorruptedFlag() {
+        val p = requirePrefs()
+        if (p.secureDataCorrupted) {
+            p.secureDataCorrupted = false
+            _state.update { it.copy(secureDataCorrupted = false) }
+        }
+    }
+
     /** Карточка статуса kill switch на главном экране: скрыть или вернуть. */
     fun setKillSwitchCardVisible(visible: Boolean) {
         val p = requirePrefs()
@@ -739,6 +748,7 @@ object VpnController {
                             autoSwitchTriedIds.clear()
                         }
                         p.saveLastRefresh()
+                        if (p.secureDataCorrupted) p.secureDataCorrupted = false
                         _state.update { state ->
                             val activeId = p.activeProfileId
                             val active = p.activeProfile()
@@ -752,6 +762,7 @@ object VpnController {
                                 refreshing = if (activeId == updated.id) false else state.refreshing,
                                 latencies = if (activeId == updated.id) emptyMap() else state.latencies,
                                 healthLatencies = if (activeId == updated.id) emptyMap() else state.healthLatencies,
+                                secureDataCorrupted = p.secureDataCorrupted,
                                 toast = if (showToast && activeId == updated.id) {
                                     text(R.string.toast_subscription_updated, result.nodes.size)
                                 } else state.toast

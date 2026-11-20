@@ -15,7 +15,7 @@ class Prefs(context: Context) {
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
     // Токен подписки и raw-JSON узлов содержат пароли и UUID — держим их в Keystore.
-    private val secure = SecureStorage(sp)
+    private val secure = SecureStorage(sp) { markSecureDataCorrupted() }
 
     init {
         migrateProfilesIfNeeded()
@@ -315,6 +315,20 @@ class Prefs(context: Context) {
         get() = sp.getStringSet(KEY_FAVORITE_NODES, emptySet())?.toSet() ?: emptySet()
         set(value) = sp.edit().putStringSet(KEY_FAVORITE_NODES, value.toSet()).apply()
 
+    /**
+     * Не удалось расшифровать защищённые данные (например, после сброса Keystore).
+     * Значение не удаляется автоматически — пользователь должен добавить ссылку заново.
+     */
+    var secureDataCorrupted: Boolean
+        get() = sp.getBoolean(KEY_SECURE_DATA_CORRUPTED, false)
+        set(value) = sp.edit().putBoolean(KEY_SECURE_DATA_CORRUPTED, value).apply()
+
+    private fun markSecureDataCorrupted() {
+        if (!secureDataCorrupted) {
+            sp.edit().putBoolean(KEY_SECURE_DATA_CORRUPTED, true).apply()
+        }
+    }
+
     companion object {
         private const val NAME = "rkn_vpn_prefs"
         private const val KEY_SUB_URL = "sub_url"
@@ -354,6 +368,7 @@ class Prefs(context: Context) {
         private const val KEY_HWID = "hwid"
         private const val KEY_LAST_REFRESH = "last_refresh"
         private const val KEY_FAVORITE_NODES = "favorite_nodes"
+        private const val KEY_SECURE_DATA_CORRUPTED = "secure_data_corrupted"
         private val HWID_REGEX = Regex("^[a-zA-Z0-9=-]{10,64}$")
     }
 }

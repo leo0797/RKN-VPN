@@ -301,6 +301,22 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
         }
 
+        if (state.secureDataCorrupted) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = stringResource(R.string.subscription_data_unavailable),
+                    modifier = Modifier.padding(14.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
         // -------- выбранный сервер --------
         SectionCard(
             title = stringResource(R.string.server),

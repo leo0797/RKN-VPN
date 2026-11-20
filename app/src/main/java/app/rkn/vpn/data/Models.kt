@@ -113,6 +113,7 @@ data class AppState(
     val dnsCustom: String = "",
     val autoSwitch: Boolean = true,
     val connectOnLaunch: Boolean = false,
+    val secureDataCorrupted: Boolean = false,
     val showKillSwitchStatus: Boolean = true,
     val killSwitchStatus: SystemKillSwitch.Status = SystemKillSwitch.Status.UNKNOWN,
     val theme: String = "system",
