@@ -333,4 +333,9 @@
     <string name="profile_active">Active</string>
     <string name="profile_added">Profile added</string>
     <string name="profile_deleted">Profile deleted</string>
+
+    <!-- Servers: favorites and filters -->
+    <string name="filter_all">All</string>
+    <string name="favorite_add">Add to favorites</string>
+    <string name="favorite_remove">Remove from favorites</string>
 </resources>

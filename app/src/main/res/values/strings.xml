@@ -333,4 +333,9 @@
     <string name="profile_active">Активный</string>
     <string name="profile_added">Профиль добавлен</string>
     <string name="profile_deleted">Профиль удалён</string>
+
+    <!-- Серверы: избранное и фильтры -->
+    <string name="filter_all">Все</string>
+    <string name="favorite_add">В избранное</string>
+    <string name="favorite_remove">Убрать из избранного</string>
 </resources>

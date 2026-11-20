@@ -72,6 +72,7 @@ object VpnController {
     // Узлы, уже проверенные автопереключением в рамках текущей сессии.
     // Без этого мёртвые узлы переключались бы друг на друга по кругу.
     private val autoSwitchTriedIds = mutableSetOf<String>()
+    private var lastAutoPingAt: Long = 0L
     private var wantConnected = false
     private var networkLost = false
     private var watchdogStarted = false
@@ -111,6 +112,7 @@ object VpnController {
             subscriptionUrl = p.subscriptionUrl,
             profiles = p.profiles,
             activeProfileId = p.activeProfileId,
+            favoriteIds = p.favoriteNodeIds,
             rules = p.rules,
             routingMode = p.routingMode,
             lanDirect = p.lanDirect,
@@ -536,6 +538,24 @@ object VpnController {
                 it.copy(healthLatencies = results.toMap(), healthChecking = false)
             }
         }
+    }
+
+    fun toggleFavorite(nodeId: String) {
+        val p = prefs ?: return
+        val current = p.favoriteNodeIds
+        val updated = if (nodeId in current) current - nodeId else current + nodeId
+        p.favoriteNodeIds = updated
+        _state.update { it.copy(favoriteIds = updated) }
+    }
+
+    fun autoPingServersIfNeeded() {
+        val s = _state.value
+        if (s.connecting || s.reconnecting) return
+        if (s.nodes.isEmpty()) return
+        val now = System.currentTimeMillis()
+        if (now - lastAutoPingAt < 60_000L) return
+        lastAutoPingAt = now
+        toggleLatencyTest()
     }
 
     // ----------------------------------------------------------- profiles/subscription

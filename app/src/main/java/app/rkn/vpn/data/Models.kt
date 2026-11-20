@@ -93,6 +93,7 @@ data class AppState(
     val subscriptionUrl: String = "",
     val profiles: List<SubscriptionProfile> = emptyList(),
     val activeProfileId: String? = null,
+    val favoriteIds: Set<String> = emptySet(),
     val rules: List<RoutingRule> = emptyList(),
     val latencies: Map<String, Int?> = emptyMap(),
     val healthLatencies: Map<String, Int?> = emptyMap(),

@@ -306,6 +306,10 @@ class Prefs(context: Context) {
     val lastRefresh: Long
         get() = sp.getLong(KEY_LAST_REFRESH, 0L)
 
+    var favoriteNodeIds: Set<String>
+        get() = sp.getStringSet(KEY_FAVORITE_NODES, emptySet())?.toSet() ?: emptySet()
+        set(value) = sp.edit().putStringSet(KEY_FAVORITE_NODES, value.toSet()).apply()
+
     companion object {
         private const val NAME = "rkn_vpn_prefs"
         private const val KEY_SUB_URL = "sub_url"
@@ -343,6 +347,7 @@ class Prefs(context: Context) {
         private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"
         private const val KEY_LAST_REFRESH = "last_refresh"
+        private const val KEY_FAVORITE_NODES = "favorite_nodes"
         private val HWID_REGEX = Regex("^[a-zA-Z0-9=-]{10,64}$")
     }
 }

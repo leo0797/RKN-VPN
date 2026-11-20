@@ -2,6 +2,7 @@ package app.rkn.vpn.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,11 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -31,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +56,7 @@ import app.rkn.vpn.ui.components.PingChip
 import app.rkn.vpn.ui.components.ProtocolBadge
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SingleLineLabel
+import app.rkn.vpn.vpn.VpnController
 
 @Composable
 fun ServersScreen(
@@ -64,15 +69,33 @@ fun ServersScreen(
 ) {
     var query by remember { mutableStateOf("") }
     var sortByPing by remember { mutableStateOf(false) }
+    var protocolFilter by remember { mutableStateOf<String?>(null) }
+    var countryFilter by remember { mutableStateOf<String?>(null) }
 
-    val filtered = remember(state.nodes, query, sortByPing, state.effectiveLatencies) {
+    LaunchedEffect(Unit) {
+        VpnController.autoPingServersIfNeeded()
+    }
+
+    val protocols = remember(state.nodes) {
+        state.nodes.map { it.protocol }.distinct().sorted()
+    }
+    val countries = remember(state.nodes) {
+        state.nodes.mapNotNull { leadingFlagEmoji(it.name) }.distinct()
+    }
+
+    val filtered = remember(
+        state.nodes, query, sortByPing, protocolFilter, countryFilter, state.effectiveLatencies, state.favoriteIds
+    ) {
         val base = state.nodes.filter { node ->
-            query.isBlank() ||
+            val matchesQuery = query.isBlank() ||
                 node.name.contains(query, ignoreCase = true) ||
                 node.server.contains(query, ignoreCase = true) ||
                 node.protocol.contains(query, ignoreCase = true)
+            val matchesProtocol = protocolFilter == null || node.protocol.equals(protocolFilter, ignoreCase = true)
+            val matchesCountry = countryFilter == null || leadingFlagEmoji(node.name) == countryFilter
+            matchesQuery && matchesProtocol && matchesCountry
         }
-        if (sortByPing) {
+        val sorted = if (sortByPing) {
             base.sortedWith(
                 compareBy<ProxyNode> { state.effectiveLatencies[it.id] ?: Int.MAX_VALUE }
                     .thenBy { it.name.lowercase() }
@@ -80,6 +103,7 @@ fun ServersScreen(
         } else {
             base
         }
+        sorted.sortedByDescending { it.id in state.favoriteIds }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -119,6 +143,57 @@ fun ServersScreen(
             singleLine = true,
             shape = RoundedCornerShape(16.dp)
         )
+
+        if (protocols.isNotEmpty() || countries.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (countries.isNotEmpty()) {
+                    FilterChip(
+                        selected = countryFilter == null,
+                        onClick = { countryFilter = null },
+                        label = { SingleLineLabel(stringResource(R.string.filter_all)) }
+                    )
+                    countries.forEach { flag ->
+                        FilterChip(
+                            selected = countryFilter == flag,
+                            onClick = { countryFilter = if (countryFilter == flag) null else flag },
+                            label = { Text(flag) }
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (protocols.isNotEmpty()) {
+                    FilterChip(
+                        selected = protocolFilter == null,
+                        onClick = { protocolFilter = null },
+                        label = { SingleLineLabel(stringResource(R.string.filter_all)) }
+                    )
+                    protocols.forEach { proto ->
+                        FilterChip(
+                            selected = protocolFilter?.equals(proto, ignoreCase = true) == true,
+                            onClick = {
+                                protocolFilter = if (protocolFilter?.equals(proto, ignoreCase = true) == true) null else proto
+                            },
+                            label = { SingleLineLabel(proto.uppercase()) }
+                        )
+                    }
+                }
+            }
+        }
 
         Row(
             modifier = Modifier
@@ -169,7 +244,9 @@ fun ServersScreen(
                         node = node,
                         ping = state.effectiveLatencies[node.id],
                         selected = node.id == state.selectedId,
-                        onClick = { onSelect(node.id) }
+                        favorite = node.id in state.favoriteIds,
+                        onClick = { onSelect(node.id) },
+                        onToggleFavorite = { VpnController.toggleFavorite(node.id) }
                     )
                 }
             }
@@ -182,7 +259,9 @@ private fun NodeRow(
     node: ProxyNode,
     ping: Int?,
     selected: Boolean,
-    onClick: () -> Unit
+    favorite: Boolean,
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -227,10 +306,25 @@ private fun NodeRow(
                     )
                 }
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
+            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(36.dp)) {
+                if (favorite) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = stringResource(R.string.favorite_remove),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Text(
+                        text = "☆",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
             PingChip(ping)
             if (selected) {
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.selected_cd),
@@ -241,3 +335,17 @@ private fun NodeRow(
         }
     }
 }
+
+internal fun leadingFlagEmoji(name: String): String? {
+    val trimmed = name.trimStart()
+    if (trimmed.length < 4) return null
+    val first = Character.codePointAt(trimmed, 0)
+    val firstChars = Character.charCount(first)
+    if (trimmed.length < firstChars + 2) return null
+    val second = Character.codePointAt(trimmed, firstChars)
+    val secondChars = Character.charCount(second)
+    if (!isRegionalIndicator(first) || !isRegionalIndicator(second)) return null
+    return trimmed.substring(0, firstChars + secondChars)
+}
+
+private fun isRegionalIndicator(codePoint: Int): Boolean = codePoint in 0x1F1E6..0x1F1FF
