@@ -21,6 +21,8 @@ import java.util.zip.ZipFile
  * После ротации ключа не достаточно «похожего на APK» файла: проверяем и
  * контрольную сумму из релиза, и подпись, и адрес, от которого файл пришёл.
  */
+class SignatureMismatchException(message: String) : IllegalStateException(message)
+
 object ApkInstaller {
 
     private const val CACHE_DIR = "updates"
@@ -164,7 +166,8 @@ object ApkInstaller {
                 error(message(R.string.error_download_hash))
             }
             if (!ApkSignature.matches(context, temp)) {
-                error(message(R.string.error_download_signature))
+                temp.delete()
+                throw SignatureMismatchException(message(R.string.error_download_signature))
             }
             if (!temp.renameTo(target)) {
                 target.delete()
@@ -179,7 +182,7 @@ object ApkInstaller {
     /** Открывает системный установщик через content:// URI — без браузера. */
     fun install(context: Context, file: File) {
         if (!ApkSignature.matches(context, file)) {
-            error(context.getString(R.string.error_download_signature))
+            throw SignatureMismatchException(context.getString(R.string.error_download_signature))
         }
         val uri = FileProvider.getUriForFile(
             context,

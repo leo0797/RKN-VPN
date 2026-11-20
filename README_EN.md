@@ -80,9 +80,7 @@ Only `http`/`https` subscription links are accepted. Redirects are checked too:
 4. In the shade: Edit → drag the **RKN VPN** tile. Tap toggles the VPN, long tap
    opens the app.
 
-**Since 1.0.22 the signing certificate has changed.** If you have an older
-version installed, uninstall it first. This is a one-time step; after that,
-in-app updates will install over the current version.
+**Important about signing.** Android does not install an update if the APK is signed with a different key. When the signing key changes, the release notes will include separate instructions: you will usually need to download and install the APK manually once. After that, regular in-app updates will install over the current version again. If the app reports that the signing key has changed during an update check, open the release page and install the new version manually.
 
 ### Obtainium
 
@@ -94,7 +92,21 @@ in-app updates will install over the current version.
 5. Package name: `app.rkn.vpn`. Obtainium will download the APK on update.
 
 In-app updates work too: they verify the SHA-256 from the release notes and the
-APK signature, download only from `github.com`, and start the installer.
+downloaded APK signature, download only from `github.com`, and before installing check that the APK is signed with the same key as the installed app.
+
+### How to verify the APK signature
+
+Before installing an APK from GitHub Releases, you can verify the signing certificate fingerprint:
+
+```bash
+apksigner verify --print-certs RKN-VPN-<version>-<abi>.apk
+```
+
+Current signing certificate SHA-256 fingerprint (Signer #1):
+
+`ea25a0348c91cb401aba4319f944ca6029ff03eab21d7ae63dd67ceca2c84256`
+
+If the fingerprint differs, do not install the file and download the APK only from the official release page.
 
 ## Security and limitations
 

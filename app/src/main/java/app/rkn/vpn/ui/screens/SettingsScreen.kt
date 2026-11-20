@@ -151,6 +151,7 @@ fun SettingsScreen(
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var downloadProgress by remember { mutableStateOf<Int?>(null) }
     var downloadError by remember { mutableStateOf<String?>(null) }
+    var downloadSignatureMismatchUrl by remember { mutableStateOf<String?>(null) }
     val updateScope = rememberCoroutineScope()
 
     fun runUpdateCheck() {
@@ -668,6 +669,7 @@ fun SettingsScreen(
                     }
                     update = null
                     downloadError = null
+                    downloadSignatureMismatchUrl = null
                     downloadProgress = 0
                     updateScope.launch {
                         runCatching {
@@ -682,6 +684,9 @@ fun SettingsScreen(
                         }.onFailure { e ->
                             downloadError = e.message?.takeIf { it.isNotBlank() }
                                 ?: context.getString(R.string.error_download_failed)
+                            if (e is app.rkn.vpn.core.SignatureMismatchException) {
+                                downloadSignatureMismatchUrl = release.pageUrl
+                            }
                         }
                         downloadProgress = null
                     }
@@ -698,8 +703,12 @@ fun SettingsScreen(
     val progress = downloadProgress
     val failure = downloadError
     if (progress != null || failure != null) {
+        val signatureMismatchUrl = downloadSignatureMismatchUrl
         AlertDialog(
-            onDismissRequest = { downloadError = null },
+            onDismissRequest = {
+                downloadError = null
+                downloadSignatureMismatchUrl = null
+            },
             title = { Text(stringResource(R.string.updating_title)) },
             text = {
                 Column {
@@ -730,7 +739,28 @@ fun SettingsScreen(
             },
             confirmButton = {
                 if (failure != null) {
-                    TextButton(onClick = { downloadError = null }) {
+                    if (signatureMismatchUrl != null) {
+                        TextButton(onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(signatureMismatchUrl)))
+                        }) {
+                            Text(stringResource(R.string.open_release))
+                        }
+                    } else {
+                        TextButton(onClick = {
+                            downloadError = null
+                            downloadSignatureMismatchUrl = null
+                        }) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                if (failure != null && signatureMismatchUrl != null) {
+                    TextButton(onClick = {
+                        downloadError = null
+                        downloadSignatureMismatchUrl = null
+                    }) {
                         Text(stringResource(R.string.close))
                     }
                 }

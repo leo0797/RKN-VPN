@@ -13,6 +13,24 @@
 Security fixes are shipped as a new release. If you are on an older version,
 please update to the latest one before reporting an issue.
 
+## Как проверить подпись APK / How to verify the APK signature
+
+Скачивайте APK только со страницы официальных релизов GitHub и перед установкой сверяйте отпечаток сертификата подписи:
+
+Download APKs only from the official GitHub Releases page and verify the signing certificate fingerprint before installing:
+
+```bash
+apksigner verify --print-certs RKN-VPN-<version>-<abi>.apk
+```
+
+Актуальный SHA-256 отпечаток сертификата подписи (Signer #1):  
+Current signing certificate SHA-256 fingerprint (Signer #1):
+
+`ea25a0348c91cb401aba4319f944ca6029ff03eab21d7ae63dd67ceca2c84256`
+
+Если отпечаток отличается или команда сообщает о проблеме с подписью, не устанавливайте файл.  
+If the fingerprint differs or the tool reports a signature problem, do not install the file.
+
 ## Сообщить об уязвимости / Report a vulnerability
 
 Не создавайте публичный Issue для уязвимостей. Вместо этого используйте вкладку

@@ -277,7 +277,7 @@
     <!-- Update and subscription checks -->
     <string name="error_download_hash">APK SHA-256 does not match the checksum in the release. Update cancelled.</string>
     <string name="error_download_host">APKs may only be downloaded from GitHub. Download cancelled.</string>
-    <string name="error_download_signature">The APK signature does not match the installed app. Update cancelled.</string>
+    <string name="error_download_signature">The signing key has changed. Download and install the new version manually.</string>
     <string name="error_download_redirects">Too many redirects while downloading the APK.</string>
     <string name="error_sub_downgrade">An HTTPS to HTTP redirect is blocked: it would expose your subscription token in plain text.</string>
     <string name="warning_http_subscription">Warning: this link uses http:// — your subscription token is sent in plain text. Switch to https:// if possible.</string>

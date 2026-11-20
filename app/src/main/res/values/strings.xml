@@ -277,7 +277,7 @@
     <!-- Проверка обновлений и подписок -->
     <string name="error_download_hash">SHA-256 APK не совпал с контрольной суммой из релиза. Обновление отменено.</string>
     <string name="error_download_host">APK можно скачивать только с GitHub. Загрузка отменена.</string>
-    <string name="error_download_signature">Подпись APK не совпадает с подписью установленного приложения. Обновление отменено.</string>
+    <string name="error_download_signature">Ключ подписи сменился. Скачайте и установите новую версию вручную.</string>
     <string name="error_download_redirects">Слишком много редиректов при загрузке APK.</string>
     <string name="error_sub_downgrade">Редирект с HTTPS на HTTP запрещён: токен подписки ушёл бы открытым текстом.</string>
     <string name="warning_http_subscription">Внимание: ссылка использует http:// — токен подписки передаётся открытым текстом. По возможности перейдите на https://.</string>
