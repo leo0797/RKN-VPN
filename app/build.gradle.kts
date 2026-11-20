@@ -136,7 +136,10 @@ dependencies {
 
     // Эмуляторный smoke-тест для API 24–28: проверяет, что overrideLibrary
     // для hev-socks5-tunnel не ломает запуск на старых устройствах.
+    androidTestImplementation(composeBom)
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

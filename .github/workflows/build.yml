@@ -91,13 +91,34 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      # Пять одновременно резолвящих Gradle-процессов часто получают HTTP 429
-      # от Maven Central. Два параллельных эмулятора всё равно покрывают API 24–28.
+      # Два параллельных эмулятора уменьшают нагрузку на Maven Central и время очереди.
       max-parallel: 2
       matrix:
-        # hev-socks5-tunnel объявляет minSdk 29; приложение — 24. Проверяем
-        # реальный запуск на всех поддерживаемых старых API, а не только сборку.
-        api-level: [24, 25, 26, 27, 28]
+        include:
+          - api-level: 24
+            target: default
+            arch: x86
+          - api-level: 25
+            target: default
+            arch: x86
+          - api-level: 26
+            target: default
+            arch: x86
+          - api-level: 27
+            target: default
+            arch: x86
+          - api-level: 28
+            target: default
+            arch: x86
+          - api-level: 31
+            target: google_apis
+            arch: x86_64
+          - api-level: 34
+            target: google_apis
+            arch: x86_64
+          - api-level: 35
+            target: google_apis
+            arch: x86_64
 
     steps:
       - name: Checkout
@@ -127,8 +148,8 @@ jobs:
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
-          target: default
-          arch: x86
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
           profile: Nexus 5
           emulator-boot-timeout: 600
           script: chmod +x ./gradlew && bash scripts/gradle-with-retry.sh :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
