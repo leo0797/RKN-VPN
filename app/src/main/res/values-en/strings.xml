@@ -273,4 +273,36 @@
     <string name="tile_state_connected">VPN connected</string>
     <string name="tile_state_connecting">VPN connecting</string>
     <string name="tile_state_disabled">VPN off</string>
+
+    <!-- Update and subscription checks -->
+    <string name="error_download_hash">APK SHA-256 does not match the checksum in the release. Update cancelled.</string>
+    <string name="error_download_host">APKs may only be downloaded from GitHub. Download cancelled.</string>
+    <string name="error_download_signature">The APK signature does not match the installed app. Update cancelled.</string>
+    <string name="error_download_redirects">Too many redirects while downloading the APK.</string>
+    <string name="error_sub_downgrade">An HTTPS to HTTP redirect is blocked: it would expose your subscription token in plain text.</string>
+    <string name="warning_http_subscription">Warning: this link uses http:// — your subscription token is sent in plain text. Switch to https:// if possible.</string>
+
+    <!-- Split tunneling -->
+    <string name="split_mode_all">Everything through VPN except selected apps</string>
+    <string name="split_mode_all_desc">Selected apps connect directly, everything else goes through the VPN. Useful for excluding banks and government services.</string>
+    <string name="split_mode_excluded">Only selected apps through VPN</string>
+    <string name="split_mode_excluded_desc">Only checked apps use the VPN, all others connect directly.</string>
+    <string name="split_empty_warning_excluded">The list is empty: all traffic will go through the VPN. Select at least one app to exclude it.</string>
+
+    <!-- Kill switch and battery -->
+    <string name="kill_switch_title">Protection when the VPN drops</string>
+    <string name="kill_switch_on">Kill switch is on: Always-on VPN and block connections without VPN are active</string>
+    <string name="kill_switch_off">Kill switch is off — enable Always-on VPN and “Block connections without VPN” in Android settings</string>
+    <string name="kill_switch_unknown">Kill switch status is available on Android 10 and newer</string>
+    <string name="battery_hint_title">Keep Android from killing the VPN</string>
+    <string name="battery_hint_text">On Xiaomi, Huawei and Samsung, disable battery optimization for RKN VPN and allow background activity. Otherwise the service and subscription refresh may be stopped.</string>
+    <string name="battery_open_settings">Battery settings</string>
+
+    <!-- Adding a subscription from Home -->
+    <string name="add_from_clipboard">Paste from clipboard</string>
+    <string name="add_from_qr">Scan QR code</string>
+    <string name="clipboard_empty">No subscription link in the clipboard</string>
+    <string name="clipboard_not_link">The clipboard does not contain an http:// or https:// link</string>
+    <string name="deep_link_applied">Settings from the link were applied</string>
+    <string name="error_deeplink_unknown">Could not recognize data from the link</string>
 </resources>

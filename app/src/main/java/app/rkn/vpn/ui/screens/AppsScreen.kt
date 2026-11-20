@@ -70,6 +70,7 @@ private data class InstalledApp(val packageName: String, val label: String)
 fun AppsScreen(
     state: AppState,
     onToggleSplit: (Boolean) -> Unit,
+    onSetSplitMode: (String) -> Unit,
     onSetApps: (Set<String>) -> Unit
 ) {
     val context = LocalContext.current
@@ -121,6 +122,29 @@ fun AppsScreen(
                     onChange = onToggleSplit
                 )
                 if (state.splitEnabled) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = state.splitMode == "include",
+                            onClick = { onSetSplitMode("include") },
+                            label = { SingleLineLabel(text = stringResource(R.string.split_mode_excluded)) }
+                        )
+                        FilterChip(
+                            selected = state.splitMode == "exclude",
+                            onClick = { onSetSplitMode("exclude") },
+                            label = { SingleLineLabel(text = stringResource(R.string.split_mode_all)) }
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (state.splitMode == "exclude") {
+                            stringResource(R.string.split_mode_all_desc)
+                        } else {
+                            stringResource(R.string.split_mode_excluded_desc)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
                         text = stringResource(R.string.selected_apps_count, state.splitApps.size),
                         style = MaterialTheme.typography.bodySmall,
@@ -128,7 +152,11 @@ fun AppsScreen(
                     )
                     if (state.splitApps.isEmpty()) {
                         Text(
-                            text = stringResource(R.string.split_empty_warning),
+                            text = if (state.splitMode == "exclude") {
+                                stringResource(R.string.split_empty_warning_excluded)
+                            } else {
+                                stringResource(R.string.split_empty_warning)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )

@@ -44,6 +44,39 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun parsesChecksumsAndBindsThemToAssets() {
+        val hash = "a".repeat(64)
+        val other = "b".repeat(64)
+        val notes = """
+            Что нового
+            app-arm64-v8a-release.apk: $hash
+            `$other  app-armeabi-v7a-release.apk`
+            random: $other
+        """.trimIndent()
+        val parsed = UpdateChecker.parseChecksums(notes)
+        assertEquals(hash, parsed["app-arm64-v8a-release.apk"])
+        assertEquals(other, parsed["app-armeabi-v7a-release.apk"])
+        assertEquals(2, parsed.size)
+    }
+
+    @Test
+    fun releaseContainsMatchingApkSha256() {
+        val hash = "c".repeat(64)
+        val body = """
+            {
+              "tag_name": "v9.9.9",
+              "body": "app-arm64-v8a-release.apk: $hash",
+              "html_url": "https://github.com/leo0797/RKN-VPN/releases/tag/v9.9.9",
+              "assets": [
+                {"name": "app-arm64-v8a-release.apk", "browser_download_url": "https://github.com/leo0797/RKN-VPN/releases/download/v9.9.9/app-arm64-v8a-release.apk"}
+              ]
+            }
+        """.trimIndent()
+        val release = UpdateChecker.parse(body)!!
+        assertEquals(hash, release.apkSha256)
+    }
+
+    @Test
     fun distinguishesUpdateNoUpdateAndFailures() {
         val server = MockWebServer()
         server.start()

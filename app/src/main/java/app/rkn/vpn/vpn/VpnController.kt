@@ -111,6 +111,7 @@ object VpnController {
             lanDirect = p.lanDirect,
             activePresets = p.activePresets,
             splitEnabled = p.splitEnabled,
+            splitMode = p.splitMode,
             splitApps = p.splitApps,
             checkUrl = p.checkUrl,
             autoSwitch = p.autoSwitch,
@@ -122,6 +123,11 @@ object VpnController {
     }
 
     private fun requirePrefs(): Prefs = prefs ?: error("VpnController не инициализирован")
+
+    /** Показывает сообщение из deep link через общий snackbar. */
+    fun showError(message: String) {
+        _state.update { it.copy(error = message) }
+    }
 
     /** Сервис спрашивает перед START_STICKY-перезапуском с пустым intent. */
     fun isWanted(): Boolean = wantConnected
@@ -684,6 +690,7 @@ object VpnController {
             .put("lanDirect", p.lanDirect)
             .put("activePresets", JSONArray(p.activePresets))
             .put("splitEnabled", p.splitEnabled)
+            .put("splitMode", p.splitMode)
             .put("splitApps", JSONArray(p.splitApps))
             .put("theme", p.theme)
             .put("language", p.language)
@@ -713,6 +720,7 @@ object VpnController {
                 (0 until presets.length()).map { presets.optString(it) }
             )
             p.splitEnabled = obj.optBoolean("splitEnabled", false)
+            p.splitMode = obj.optString("splitMode", "include")
             val apps = JSONArray(obj.optString("splitApps", "[]"))
             p.splitApps = (0 until apps.length()).mapTo(HashSet()) { apps.optString(it) }
             p.theme = obj.optString("theme", "system")
@@ -745,6 +753,7 @@ object VpnController {
                 lanDirect = p.lanDirect,
                 activePresets = p.activePresets,
                 splitEnabled = p.splitEnabled,
+                splitMode = p.splitMode,
                 splitApps = p.splitApps,
                 checkUrl = p.checkUrl,
                 autoSwitch = p.autoSwitch,
@@ -801,6 +810,13 @@ object VpnController {
         val p = requirePrefs()
         p.splitEnabled = enabled
         _state.update { it.copy(splitEnabled = enabled) }
+        scheduleReconnect(0L)
+    }
+
+    fun setSplitMode(mode: String) {
+        val p = requirePrefs()
+        p.splitMode = mode
+        _state.update { it.copy(splitMode = p.splitMode) }
         scheduleReconnect(0L)
     }
 

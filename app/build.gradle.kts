@@ -4,16 +4,23 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Ключ подписи хранится только в GitHub Secrets. Локально можно задать те же
+// переменные окружения и указать SIGNING_KEYSTORE_PATH на файл вне репозитория.
+// Без них release-сборка получается неподписанной (например, в PR из форка).
+val signingStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+val signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+val signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+
 android {
     namespace = "app.rkn.vpn"
     compileSdk = 35
 
     signingConfigs {
         create("release") {
-            storeFile = file("release.keystore")
-            storePassword = "rknvpn2026"
-            keyAlias = "rknvpn"
-            keyPassword = "rknvpn2026"
+            storeFile = file(System.getenv("SIGNING_KEYSTORE_PATH") ?: "release.keystore")
+            storePassword = signingStorePassword.orEmpty()
+            keyAlias = signingKeyAlias.orEmpty()
+            keyPassword = signingKeyPassword.orEmpty()
         }
     }
 
@@ -21,8 +28,8 @@ android {
         applicationId = "app.rkn.vpn"
         minSdk = 24
         targetSdk = 35
-        versionCode = 22
-        versionName = "1.0.21"
+        versionCode = 23
+        versionName = "1.0.22"
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
         buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")
@@ -36,14 +43,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Подписывается release-ключом, чтобы APK из CI сразу устанавливался.
-            signingConfig = signingConfigs.getByName("release")
+            // Подписывается только когда ключ реально передан в окружении.
+            if (!signingStorePassword.isNullOrBlank() && !signingKeyPassword.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
     splits {
         abi {
-            isEnable = true
+            // Эмуляторы в CI работают на x86, для них нужен один APK со всеми
+            // ABI. Релизы по-прежнему собираются с двумя split-APK.
+            isEnable = providers.gradleProperty("rkn.splits.enabled")
+                .map { it.toBoolean() }.getOrElse(true)
             reset()
             include("arm64-v8a", "armeabi-v7a")
             isUniversalApk = false
@@ -81,8 +93,10 @@ android {
     }
 
     lint {
-        abortOnError = false
-        checkReleaseBuilds = false
+        // В CI lint обязателен: ошибки не должны попадать в релиз. Локально
+        // оставляем режим предупреждений, чтобы не блокировать быстрые сборки.
+        abortOnError = System.getenv("GITHUB_ACTIONS") == "true"
+        checkReleaseBuilds = true
     }
 
     testOptions {
@@ -119,4 +133,10 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+
+    // Эмуляторный smoke-тест для API 24–28: проверяет, что overrideLibrary
+    // для hev-socks5-tunnel не ломает запуск на старых устройствах.
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

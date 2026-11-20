@@ -1,5 +1,14 @@
 package app.rkn.vpn.ui.screens
 
+import android.app.Activity
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -32,12 +41,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -58,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.rkn.vpn.R
 import app.rkn.vpn.data.AppState
+import app.rkn.vpn.ui.QrScanActivity
 import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.PingChip
 import app.rkn.vpn.ui.components.ProtocolBadge
@@ -66,7 +79,23 @@ import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.ui.components.StatTile
 import app.rkn.vpn.util.Format
 import kotlinx.coroutines.delay
+import java.util.Locale
 import kotlin.math.roundToInt
+
+/**
+ * Статические VpnService.isAlwaysOn()/isLockdownEnabled() появились только в
+ * API 29, а экран должен работать и на API 24. Читаем те же системные настройки
+ * напрямую: для Always-on VPN это имя пакета, для блокировки — флаг 0/1.
+ */
+private fun isSystemKillSwitchOn(context: Context): Boolean {
+    val resolver = context.contentResolver
+    if (Settings.Secure.getString(resolver, "always_on_vpn_app") != context.packageName) {
+        return false
+    }
+    return runCatching {
+        Settings.Secure.getInt(resolver, "always_on_vpn_lockdown", 0)
+    }.getOrDefault(0) == 1
+}
 
 @Composable
 fun HomeScreen(
@@ -76,7 +105,8 @@ fun HomeScreen(
     onRefresh: () -> Unit,
     onBest: () -> Unit,
     onOpenServers: () -> Unit,
-    onAddSubscription: () -> Unit
+    onAddSubscription: () -> Unit,
+    onSaveSubscription: (String) -> Unit
 ) {
     var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.connected, state.startedAt) {
@@ -88,6 +118,55 @@ fun HomeScreen(
     val elapsed = if (state.connected && state.startedAt > 0) tick - state.startedAt else 0L
     val subscription = state.subscription
     val node = state.selectedNode
+    val context = LocalContext.current
+    var addMessage by remember { mutableStateOf<String?>(null) }
+
+    fun isSubscriptionLink(value: String): Boolean =
+        value.startsWith("http://", true) || value.startsWith("https://", true)
+
+    val qrLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
+        val value = result.data?.getStringExtra(QrScanActivity.EXTRA_SCAN_RESULT)?.trim().orEmpty()
+        if (value.isEmpty()) return@rememberLauncherForActivityResult
+        if (isSubscriptionLink(value)) {
+            addMessage = null
+            onSaveSubscription(value)
+        } else {
+            addMessage = context.getString(R.string.clipboard_not_link)
+        }
+    }
+
+    fun pasteFromClipboard() {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val value = clipboard?.primaryClip?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)?.text?.toString()?.trim().orEmpty()
+        if (value.isEmpty()) {
+            addMessage = context.getString(R.string.clipboard_empty)
+        } else if (!isSubscriptionLink(value)) {
+            addMessage = context.getString(R.string.clipboard_not_link)
+        } else {
+            addMessage = null
+            onSaveSubscription(value)
+        }
+    }
+
+    val killSwitchOn = isSystemKillSwitchOn(context)
+    val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
+    val showBatteryHint = listOf("xiaomi", "huawei", "samsung")
+        .any { manufacturer.contains(it) }
+
+    fun openBatterySettings() {
+        var intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        if (intent.resolveActivity(context.packageManager) == null) {
+            intent = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+        }
+        runCatching { context.startActivity(intent) }
+    }
 
     Column(
         modifier = Modifier
@@ -160,6 +239,48 @@ fun HomeScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // -------- системная защита от утечек --------
+        SectionCard(title = stringResource(R.string.kill_switch_title)) {
+            Text(
+                text = stringResource(
+                    if (killSwitchOn) R.string.kill_switch_on else R.string.kill_switch_off
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (killSwitchOn) {
+                    MaterialTheme.colorScheme.secondary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        if (showBatteryHint) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        text = stringResource(R.string.battery_hint_title),
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.battery_hint_text),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { openBatterySettings() }) {
+                        Text(stringResource(R.string.battery_open_settings))
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -278,6 +399,37 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = onAddSubscription, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.add_subscription))
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { pasteFromClipboard() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.add_from_clipboard),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            qrLauncher.launch(Intent(context, QrScanActivity::class.java))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.add_from_qr),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                if (addMessage != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = addMessage!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         } else {

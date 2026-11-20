@@ -18,6 +18,8 @@ object UpdateChecker {
         val version: String,
         val notes: String,
         val apkUrl: String?,
+        /** SHA-256 ассета из описания релиза — проверяется перед установкой. */
+        val apkSha256: String?,
         val pageUrl: String
     )
 
@@ -81,6 +83,7 @@ object UpdateChecker {
         val preferredAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: ""
         var fallback: String? = null
         var apkUrl: String? = null
+        var apkName: String? = null
         if (assets != null) {
             for (i in 0 until assets.length()) {
                 val asset = assets.optJSONObject(i) ?: continue
@@ -91,18 +94,41 @@ object UpdateChecker {
                 if (fallback == null) fallback = url
                 if (preferredAbi.isNotEmpty() && name.contains(preferredAbi, ignoreCase = true)) {
                     apkUrl = url
+                    apkName = name
                     break
                 }
             }
         }
+        val notes = json.optString("body").trim()
+        val chosenUrl = apkUrl ?: fallback
+        val hashes = parseChecksums(notes)
         return Release(
             version = version,
-            notes = json.optString("body").trim(),
-            apkUrl = apkUrl ?: fallback,
+            notes = notes,
+            apkUrl = chosenUrl,
+            apkSha256 = apkName?.let { hashes[it] }
+                ?: hashes.values.singleOrNull(),
             pageUrl = json.optString("html_url").ifBlank {
                 "https://github.com/${BuildConfig.UPDATE_REPO}/releases"
             }
         )
+    }
+
+    /**
+     * CI дописывает в описание релиза строки вида
+     * `app-arm64-v8a-release.apk: <64 hex>`. Принимаем и обратный порядок,
+     * и обёртку в backticks — чтобы старые релизы не ломали парсер.
+     */
+    internal fun parseChecksums(notes: String): Map<String, String> {
+        val hashRegex = Regex("[a-fA-F0-9]{64}")
+        val nameRegex = Regex("[A-Za-z0-9._-]+\\.apk", RegexOption.IGNORE_CASE)
+        return buildMap {
+            notes.lineSequence().forEach { line ->
+                val hash = hashRegex.find(line)?.value?.lowercase() ?: return@forEach
+                val names = nameRegex.findAll(line).map { it.value }.toList()
+                if (names.size == 1) put(names.first(), hash)
+            }
+        }
     }
 
     /** Сравнивает версии вида 1.0.4, игнорируя суффиксы вроде -beta. */

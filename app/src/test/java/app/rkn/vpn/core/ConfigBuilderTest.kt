@@ -3,6 +3,7 @@ package app.rkn.vpn.core
 import app.rkn.vpn.data.ProxyNode
 import app.rkn.vpn.data.RoutingRule
 import app.rkn.vpn.data.RuleTarget
+import org.json.JSONObject
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +46,24 @@ class ConfigBuilderTest {
         assertTrue(config.contains("\"/ws?ed=2048\""))
         assertTrue(config.contains("\"mixed-port\": 7890"))
         assertTrue(config.contains("\"MATCH,PROXY\""))
+    }
+
+    @Test
+    fun dnsIsEnabledWithDohAndProxyServerNameserver() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(params(node))
+        val dns = JSONObject(config).getJSONObject("dns")
+
+        assertTrue(dns.getBoolean("enable"))
+        // Не fake-ip: диапазон 240.0.0.0/4 уже занят hev mapdns.
+        assertTrue(dns.getString("enhanced-mode") == "redir-host")
+        assertTrue(dns.getJSONArray("nameserver").getString(0).startsWith("https://"))
+        assertTrue(
+            dns.getJSONArray("proxy-server-nameserver")
+                .getString(0).startsWith("https://")
+        )
+        assertTrue(dns.getJSONArray("bootstrap").length() >= 2)
+        assertFalse(config.contains("\"dns\": {\r\n  \"enable\": false"))
     }
 
     @Test

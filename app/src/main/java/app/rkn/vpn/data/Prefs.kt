@@ -14,19 +14,22 @@ class Prefs(context: Context) {
     private val sp: SharedPreferences =
         context.applicationContext.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
+    // Токен подписки и raw-JSON узлов содержат пароли и UUID — держим их в Keystore.
+    private val secure = SecureStorage(sp)
+
     // ---------- подписка ----------
 
     var subscriptionUrl: String
-        get() = sp.getString(KEY_SUB_URL, "") ?: ""
-        set(value) = sp.edit().putString(KEY_SUB_URL, value.trim()).apply()
+        get() = secure.get(KEY_SUB_URL) ?: ""
+        set(value) = secure.put(KEY_SUB_URL, value.trim())
 
     var subscription: SubscriptionInfo
         get() = subscriptionFromJson(sp.getString(KEY_SUB_INFO, null))
         set(value) = sp.edit().putString(KEY_SUB_INFO, subscriptionToJson(value)).apply()
 
     var nodes: List<ProxyNode>
-        get() = nodesFromJson(sp.getString(KEY_NODES, null))
-        set(value) = sp.edit().putString(KEY_NODES, nodesToJson(value)).apply()
+        get() = nodesFromJson(secure.get(KEY_NODES))
+        set(value) = secure.put(KEY_NODES, nodesToJson(value))
 
     var selectedId: String?
         get() = sp.getString(KEY_SELECTED, null)
@@ -66,6 +69,16 @@ class Prefs(context: Context) {
     var splitEnabled: Boolean
         get() = sp.getBoolean(KEY_SPLIT_ENABLED, false)
         set(value) = sp.edit().putBoolean(KEY_SPLIT_ENABLED, value).apply()
+
+    /**
+     * "include" — через VPN только выбранные приложения (как было раньше),
+     * "exclude" — через VPN всё, кроме выбранных.
+     */
+    var splitMode: String
+        get() = if (sp.getString(KEY_SPLIT_MODE, "include") == "exclude") "exclude" else "include"
+        set(value) = sp.edit().putString(
+            KEY_SPLIT_MODE, if (value == "exclude") "exclude" else "include"
+        ).apply()
 
     var splitApps: Set<String>
         // SharedPreferences возвращает внутренний Set, который нельзя менять;
@@ -163,6 +176,7 @@ class Prefs(context: Context) {
         private const val KEY_LAN_DIRECT = "lan_direct"
         private const val KEY_ACTIVE_PRESETS = "active_presets"
         private const val KEY_SPLIT_ENABLED = "split_enabled"
+        private const val KEY_SPLIT_MODE = "split_mode"
         private const val KEY_SPLIT_APPS = "split_apps"
         private const val KEY_THEME = "theme"
         private const val KEY_LANGUAGE = "language"

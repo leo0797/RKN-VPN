@@ -155,7 +155,11 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                         },
                         onBest = { VpnController.selectBestNode() },
                         onOpenServers = { tab = TAB_SERVERS },
-                        onAddSubscription = { tab = TAB_SETTINGS }
+                        onAddSubscription = { tab = TAB_SETTINGS },
+                        onSaveSubscription = { url ->
+                            VpnController.setSubscriptionUrl(url)
+                            VpnController.refreshSubscription()
+                        }
                     )
 
                     TAB_SERVERS -> ServersScreen(
@@ -180,6 +184,7 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                     TAB_APPS -> AppsScreen(
                         state = state,
                         onToggleSplit = { VpnController.setSplitEnabled(it) },
+                        onSetSplitMode = { VpnController.setSplitMode(it) },
                         onSetApps = { VpnController.setSplitApps(it) }
                     )
 

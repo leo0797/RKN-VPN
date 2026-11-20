@@ -27,11 +27,16 @@ object RoutingPresets {
         target = RuleTarget.DIRECT,
         domains = listOf(
             "yandex.ru", "ya.ru", "yandex.kz", "yandex.by", "yandex.com.tr",
+            "yandex.net", "yastatic.net", "userapi.com", "mycdn.me",
             "vk.com", "vk.ru", "vkmail.ru", "ok.ru",
             "mail.ru", "rambler.ru", "list.ru", "bk.ru",
             "gosuslugi.ru", "mos.ru", "sberbank.ru", "sber.ru", "sbermarket.ru",
-            "vtb.ru", "tinkoff.ru", "alfabank.ru", "raiffeisen.ru",
-            "ozon.ru", "wildberries.ru", "avito.ru", "kinopoisk.ru", "rutube.ru"
+            "vtb.ru", "tinkoff.ru", "tbank.ru", "alfabank.ru", "raiffeisen.ru",
+            "ozon.ru", "wildberries.ru", "avito.ru", "kinopoisk.ru", "rutube.ru",
+            "2gis.ru",
+            // Зоны целиком: для российских сервисов оставляем прямой выход,
+            // даже если они используют не перечисленные выше домены.
+            "ru", "su", "xn--p1ai"
         )
     )
 

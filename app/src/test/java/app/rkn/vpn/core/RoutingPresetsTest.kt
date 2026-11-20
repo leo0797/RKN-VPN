@@ -15,6 +15,15 @@ class RoutingPresetsTest {
         assertTrue(rules.all { it.target == RuleTarget.DIRECT })
         assertTrue(rules.any { it.value == "yandex.ru" })
         assertTrue(rules.any { it.value == "gosuslugi.ru" })
+        assertTrue(rules.any { it.value == "yastatic.net" })
+        assertTrue(rules.any { it.value == "yandex.net" })
+        assertTrue(rules.any { it.value == "userapi.com" })
+        assertTrue(rules.any { it.value == "mycdn.me" })
+        assertTrue(rules.any { it.value == "2gis.ru" })
+        assertTrue(rules.any { it.value == "tbank.ru" })
+        assertTrue(rules.any { it.value == "ru" })
+        assertTrue(rules.any { it.value == "su" })
+        assertTrue(rules.any { it.value == "xn--p1ai" })
     }
 
     @Test

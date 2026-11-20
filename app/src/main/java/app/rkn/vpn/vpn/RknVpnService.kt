@@ -187,25 +187,39 @@ class RknVpnService : VpnService() {
                         .addRoute("::", 0)
                         .addDnsServer(MAPPED_DNS)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        builder.setMetered(false)
+                        // VPN — платное соединение: системы и приложения не должны
+                        // тянуть фоновые обновления, считая его безлимитным Wi-Fi.
+                        builder.setMetered(true)
                     }
                     builder.setUnderlyingNetworks(null)
 
                     val splitApps = if (prefs.splitEnabled) prefs.splitApps else emptySet()
-                    var allowedCount = 0
-                    splitApps.forEach { pkg ->
-                        // Себя в allowlist не добавляем: иначе трафик ядра и
-                        // UI попадёт в собственный TUN.
-                        if (pkg == packageName) return@forEach
-                        if (runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
-                            allowedCount++
-                        }
-                    }
-                    // Если ни одно приложение из списка не установлено, пустой
-                    // allowlist означал бы «весь трафик через VPN» и завернул бы
-                    // в туннель сам клиент (петля). В этом случае исключаем себя.
-                    if (allowedCount == 0) {
+                    if (prefs.splitEnabled && prefs.splitMode == "exclude") {
+                        // «Всё через VPN, кроме выбранных». Нельзя смешивать
+                        // allowlist и disallowlist в одном VpnService.Builder —
+                        // поэтому здесь только исключения.
                         runCatching { builder.addDisallowedApplication(packageName) }
+                        splitApps
+                            .filter { it != packageName }
+                            .forEach { pkg ->
+                                runCatching { builder.addDisallowedApplication(pkg) }
+                            }
+                    } else {
+                        var allowedCount = 0
+                        splitApps.forEach { pkg ->
+                            // Себя в allowlist не добавляем: иначе трафик ядра и
+                            // UI попадёт в собственный TUN.
+                            if (pkg == packageName) return@forEach
+                            if (runCatching { builder.addAllowedApplication(pkg) }.isSuccess) {
+                                allowedCount++
+                            }
+                        }
+                        // Если ни одно приложение из списка не установлено, пустой
+                        // allowlist означал бы «весь трафик через VPN» и завернул бы
+                        // в туннель сам клиент (петля). В этом случае исключаем себя.
+                        if (allowedCount == 0) {
+                            runCatching { builder.addDisallowedApplication(packageName) }
+                        }
                     }
 
                     val fd = builder.establish() ?: error(getString(R.string.error_no_vpn_interface))

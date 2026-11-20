@@ -62,6 +62,48 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
             </intent-filter>
+
+            <!-- Share-ссылки узлов: импортируем как есть, без браузера. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vless" />
+                <data android:scheme="vmess" />
+                <data android:scheme="trojan" />
+                <data android:scheme="ss" />
+                <data android:scheme="ssr" />
+                <data android:scheme="hysteria2" />
+                <data android:scheme="hy2" />
+                <data android:scheme="tuic" />
+                <data android:scheme="anytls" />
+                <data android:scheme="wireguard" />
+            </intent-filter>
+
+            <!-- Clash/Stash: clash://install-config?url=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="clash" android:host="install-config" />
+            </intent-filter>
+
+            <!-- HAPP: happ://add/<base64 или share-ссылка> и happ://add?url=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="happ" android:host="add" />
+            </intent-filter>
+
+            <!-- Своя схема для Obtainium/QR: rknvpn://add?url=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rknvpn" android:host="add" />
+                <data android:scheme="rknvpn" android:host="import" />
+            </intent-filter>
         </activity>
 
         <activity

@@ -1,5 +1,6 @@
 package app.rkn.vpn.util
 
+import android.content.Context
 import app.rkn.vpn.data.AppState
 
 /**
@@ -10,6 +11,7 @@ import app.rkn.vpn.data.AppState
 object Diagnostics {
 
     fun buildReport(
+        context: Context,
         state: AppState,
         logs: String,
         appVersion: String,
@@ -37,9 +39,14 @@ object Diagnostics {
         appendLine("LAN direct: ${state.lanDirect}")
         appendLine("Presets: ${state.activePresets.sorted().joinToString().ifEmpty { "none" }}")
         appendLine("Custom rules: ${state.rules.size}")
-        appendLine("Split apps: ${if (state.splitEnabled) state.splitApps.size.toString() else "off"}")
+        appendLine(
+            "Split apps: ${if (state.splitEnabled) "${state.splitMode}/${state.splitApps.size}" else "off"}"
+        )
         appendLine()
         appendLine("--- core log (tail) ---")
         appendLine(logs.takeLast(4_000).ifBlank { "empty" })
+        appendLine()
+        appendLine("--- crash log (tail) ---")
+        appendLine(CrashLog.read(context).takeLast(4_000).ifBlank { "empty" })
     }
 }

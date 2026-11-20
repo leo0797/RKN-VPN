@@ -107,7 +107,32 @@ object ConfigBuilder {
                             .put("HTTP", JSONObject().put("ports", JSONArray().put(80).put(8080)))
                     )
             )
-            .put("dns", JSONObject().put("enable", false))
+            // DNS ядра нужен, чтобы резолвить адреса самих прокси-серверов
+            // внутри туннеля. Системные запросы по-прежнему отвечает hev mapdns
+            // (fake-ip в 240.0.0.0/4), поэтому здесь НЕ включаем fake-ip: он
+            // конфликтовал бы с диапазоном hev. DoH с IP-адресами bootstrap
+            // не даёт утечки DNS мимо прокси и не требует системного резолвера.
+            .put(
+                "dns",
+                JSONObject()
+                    .put("enable", true)
+                    .put("ipv6", true)
+                    .put("enhanced-mode", "redir-host")
+                    .put(
+                        "nameserver",
+                        JSONArray()
+                            .put("https://cloudflare-dns.com/dns-query")
+                            .put("https://dns.google/dns-query")
+                    )
+                    .put(
+                        "proxy-server-nameserver",
+                        JSONArray().put("https://cloudflare-dns.com/dns-query")
+                    )
+                    .put(
+                        "bootstrap",
+                        JSONArray().put("1.1.1.1").put("8.8.8.8").put("1.0.0.1")
+                    )
+            )
             .put("proxies", proxies)
             .put("rules", rules)
 

@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-        Подписки бывают и http://, и https://: не все используют свой домен
-        с TLS-сертификатом, поэтому открытый трафик разрешён.
+        Подписки бывают и http://, и https://: не все панели используют домен
+        с TLS-сертификатом. Поэтому cleartext разрешён базово, но явно запрещён
+        для доменов, откуда приложение скачивает обновления.
     -->
     <base-config cleartextTrafficPermitted="true" />
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <domain includeSubdomains="true">objects.githubusercontent.com</domain>
+    </domain-config>
 </network-security-config>

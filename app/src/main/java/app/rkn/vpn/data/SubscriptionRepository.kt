@@ -129,7 +129,13 @@ class SubscriptionRepository(
                     if (++redirects > MAX_REDIRECTS) {
                         throw IllegalStateException(strings.get(R.string.error_sub_redirect_loop))
                     }
-                    current = URL(URL(current), location).toString()
+                    val next = URL(URL(current), location)
+                    // Редирект https -> http отдает токен подписки и HWID в
+                    // открытом виде, даже если исходная ссылка была защищена.
+                    if (isDowngrade(current, next.toString())) {
+                        throw IllegalStateException(strings.get(R.string.error_sub_downgrade))
+                    }
+                    current = next.toString()
                     continue
                 }
 
@@ -265,6 +271,11 @@ class SubscriptionRepository(
 
     companion object {
         private val ALLOWED_SCHEMES = setOf("http", "https")
+
+        /** TRUE только для перехода с защищённого канала на открытый. */
+        internal fun isDowngrade(from: String, to: String): Boolean =
+            from.startsWith("https://", ignoreCase = true) &&
+                to.startsWith("http://", ignoreCase = true)
         private const val CONNECT_TIMEOUT_MS = 12_000
         private const val READ_TIMEOUT_MS = 20_000
         private const val MAX_REDIRECTS = 5

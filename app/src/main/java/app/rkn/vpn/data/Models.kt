@@ -14,10 +14,11 @@ data class RoutingRule(
     val target: RuleTarget
 ) {
     /**
-     * `no-resolve` для IP-правил обязателен: в этой схеме DNS отдаёт hev mapdns
-     * (fake-ip), а у mihomo собственный DNS выключен. Без no-resolve mihomo
-     * попытается резолвить домен системным DNS, которого внутри туннеля нет:
-     * это лишняя задержка на каждое соединение и утечка запроса мимо прокси.
+     * `no-resolve` для IP-правил обязателен: системные DNS-запросы внутри
+     * туннеля отдаёт hev mapdns (fake-ip в 240.0.0.0/4), а DNS mihomo
+     * включён только для внутренних запросов и адресов прокси-серверов.
+     * Без no-resolve mihomo попытался бы резолвить домен ещё раз — лишняя
+     * задержка на каждое соединение и запрос мимо выбранного DoH.
      */
     fun toClashRule(): String {
         val suffix = if (type == "IP-CIDR" || type == "IP-CIDR6") ",no-resolve" else ""
@@ -84,6 +85,7 @@ data class AppState(
     val lanDirect: Boolean = true,
     val activePresets: Set<String> = emptySet(),
     val splitEnabled: Boolean = false,
+    val splitMode: String = "include",
     val splitApps: Set<String> = emptySet(),
     val checkUrl: String = Prefs.DEFAULT_CHECK_URL,
     val autoSwitch: Boolean = true,

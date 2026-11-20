@@ -3,6 +3,7 @@ package app.rkn.vpn
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,7 @@ import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.ui.AppRoot
 import app.rkn.vpn.vpn.VpnController
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : BaseActivity() {
 
@@ -75,12 +77,56 @@ class MainActivity : BaseActivity() {
      * и мы сразу запрашиваем разрешение и подключаемся.
      */
     private fun handleIntent(intent: Intent?) {
+        val data = intent?.data
+        if (data != null) {
+            if (handleDeepLink(data)) {
+                VpnController.showError(getString(R.string.deep_link_applied))
+            } else {
+                VpnController.showError(getString(R.string.error_deeplink_unknown))
+            }
+            intent?.data = null
+        }
+
         val autoConnect = intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) ?: false
         if (!autoConnect) return
         intent?.removeExtra(EXTRA_AUTO_CONNECT)
         val state = VpnController.state.value
         if (state.connected || state.connecting || state.nodes.isEmpty()) return
         requestVpnPermission()
+    }
+
+    /**
+     * Возвращает true, если ссылка распознана. Значение может быть адресом
+     * подписки (http/https) или готовой share-ссылкой/базой узлов — тогда
+     * используем тот же импорт, что и кнопка «Добавить».
+     */
+    private fun handleDeepLink(data: Uri): Boolean {
+        val scheme = data.scheme?.lowercase(Locale.ROOT).orEmpty()
+        val shareSchemes = setOf(
+            "vless", "vmess", "trojan", "ss", "ssr", "hysteria2", "hy2",
+            "tuic", "anytls", "wireguard"
+        )
+        val raw = when (scheme) {
+            in shareSchemes -> data.toString()
+            "clash" -> data.getQueryParameter("url")
+                ?: data.getQueryParameter("config")
+            "happ" -> data.getQueryParameter("url")
+                ?: data.getQueryParameter("add")
+                ?: data.path?.removePrefix("/")?.removePrefix("add/")?.let { Uri.decode(it) }
+            "rknvpn" -> data.getQueryParameter("url")
+                ?: data.getQueryParameter("text")
+                ?: data.path?.removePrefix("/")?.removePrefix("add/")?.let { Uri.decode(it) }
+            else -> null
+        } ?: return false
+
+        val value = raw.trim()
+        if (value.isEmpty()) return false
+        if (value.startsWith("http://", true) || value.startsWith("https://", true)) {
+            VpnController.setSubscriptionUrl(value)
+            VpnController.refreshSubscription()
+            return true
+        }
+        return VpnController.importText(value)
     }
 
     private fun requestVpnPermission() {

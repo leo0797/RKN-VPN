@@ -210,6 +210,14 @@ fun SettingsScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp)
                 )
+                if (url.trim().startsWith("http://", ignoreCase = true)) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.warning_http_subscription),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
@@ -445,6 +453,7 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = {
                             val report = Diagnostics.buildReport(
+                                context = context,
                                 state = state,
                                 logs = VpnController.readLogs(),
                                 appVersion = BuildConfig.VERSION_NAME,
@@ -655,7 +664,8 @@ fun SettingsScreen(
                                 context, apkUrl, release.version,
                                 { downloadProgress = it },
                                 VpnController.localProxy(),
-                                Strings { id, args -> context.getString(id, *args) }
+                                Strings { id, args -> context.getString(id, *args) },
+                                release.apkSha256
                             )
                             ApkInstaller.install(context, file)
                         }.onFailure { e ->
