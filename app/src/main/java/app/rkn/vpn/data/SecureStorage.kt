@@ -22,7 +22,12 @@ internal class SecureStorage(private val sp: SharedPreferences) {
 
     fun get(key: String): String? {
         val raw = sp.getString(key, null) ?: return null
-        if (!raw.startsWith(PREFIX)) return raw.also { put(key, it) }
+        if (!raw.startsWith(PREFIX)) {
+            // Legacy plaintext: migrate to encrypted storage when possible.
+            val encrypted = encryptOrNull(raw)
+            if (encrypted != null) sp.edit().putString(key, encrypted).apply()
+            return raw
+        }
 
         val decrypted = decrypt(raw.removePrefix(PREFIX))
         if (decrypted == null) sp.edit().remove(key).apply()
@@ -34,8 +39,11 @@ internal class SecureStorage(private val sp: SharedPreferences) {
             sp.edit().remove(key).apply()
             return
         }
-        sp.edit().putString(key, encrypt(value)).apply()
+        val stored = encryptOrNull(value) ?: value
+        sp.edit().putString(key, stored).apply()
     }
+
+    private fun encryptOrNull(value: String): String? = runCatching { encrypt(value) }.getOrNull()
 
     private fun encrypt(value: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)

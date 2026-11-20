@@ -24,9 +24,11 @@ import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.data.RoutingRule
 import app.rkn.vpn.data.SubscriptionInfo
+import app.rkn.vpn.data.SubscriptionProfile
 import app.rkn.vpn.data.SubscriptionRepository
 import app.rkn.vpn.data.nodesFromJson
 import app.rkn.vpn.data.nodesToJson
+import app.rkn.vpn.data.profilesFromJson
 import app.rkn.vpn.data.rulesFromJson
 import app.rkn.vpn.data.rulesToJson
 import app.rkn.vpn.data.subscriptionFromJson
@@ -107,6 +109,8 @@ object VpnController {
             selectedId = selected,
             subscription = p.subscription,
             subscriptionUrl = p.subscriptionUrl,
+            profiles = p.profiles,
+            activeProfileId = p.activeProfileId,
             rules = p.rules,
             routingMode = p.routingMode,
             lanDirect = p.lanDirect,
@@ -534,12 +538,72 @@ object VpnController {
         }
     }
 
-    // ----------------------------------------------------------- subscription
+    // ----------------------------------------------------------- profiles/subscription
+
+    private fun syncActiveState(p: Prefs = requirePrefs()) {
+        _state.update {
+            it.copy(
+                profiles = p.profiles,
+                activeProfileId = p.activeProfileId,
+                nodes = p.nodes,
+                selectedId = p.selectedId,
+                subscription = p.subscription,
+                subscriptionUrl = p.subscriptionUrl
+            )
+        }
+    }
 
     fun setSubscriptionUrl(url: String) {
         val p = requirePrefs()
         p.subscriptionUrl = url
-        _state.update { it.copy(subscriptionUrl = url) }
+        syncActiveState(p)
+    }
+
+    fun switchProfile(id: String) {
+        val p = requirePrefs()
+        if (p.profiles.none { it.id == id }) return
+        p.activeProfileId = id
+        autoSwitchTriedIds.clear()
+        syncActiveState(p)
+        _state.update { it.copy(latencies = emptyMap(), healthLatencies = emptyMap(), error = null) }
+        scheduleReconnect(0L)
+    }
+
+    fun addProfile(url: String, name: String = "") {
+        val p = requirePrefs()
+        val trimmed = url.trim()
+        if (trimmed.isBlank()) {
+            _state.update { it.copy(error = text(R.string.error_subscription_url_required)) }
+            return
+        }
+        val profile = p.createProfile(name = name.trim(), url = trimmed)
+        p.activeProfileId = profile.id
+        syncActiveState(p)
+        refreshSubscription(showToast = true)
+    }
+
+    fun removeProfile(id: String) {
+        val p = requirePrefs()
+        if (p.profiles.size <= 1) {
+            // Keep at least one profile for compatibility; clear it instead.
+            val active = p.activeProfile() ?: return
+            p.setProfileUrl(active.id, "")
+            p.updateProfile(active.copy(subscription = SubscriptionInfo(), nodes = emptyList(), selectedId = null, name = ""))
+            syncActiveState(p)
+            _state.update { it.copy(error = null, toast = null) }
+            return
+        }
+        val wasActive = p.activeProfileId == id
+        p.removeProfile(id)
+        syncActiveState(p)
+        if (wasActive) {
+            _state.update { it.copy(latencies = emptyMap(), healthLatencies = emptyMap(), error = null) }
+            scheduleReconnect(0L)
+        }
+    }
+
+    fun refreshProfile(id: String, showToast: Boolean = true) {
+        scope.launch { refreshSubscriptionInternal(showToast, profileId = id) }
     }
 
     /** Адрес, который mihomo запрашивает через выбранный outbound. */
@@ -588,60 +652,97 @@ object VpnController {
 
     suspend fun refreshSubscriptionAwait(): Boolean = refreshSubscriptionInternal(true)
 
-    /** Фоновая проверка: не показывает тост и не портит UI-состояние ошибкой. */
+    /** Обновление активного профиля в фоне (совместимость). */
     suspend fun refreshSubscriptionBackground(): Boolean =
         refreshSubscriptionInternal(showToast = false, silent = true)
 
+    /** Обновить все профили с URL (для фонового воркера). */
+    suspend fun refreshAllProfilesBackground(): Boolean {
+        val p = requirePrefs()
+        val ids = p.profiles.map { it.id }
+        var anySuccess = false
+        for (id in ids) {
+            if (p.profileUrl(id).isNotBlank()) {
+                anySuccess = refreshSubscriptionInternal(showToast = false, silent = true, profileId = id) || anySuccess
+            }
+        }
+        return anySuccess
+    }
+
     private suspend fun refreshSubscriptionInternal(
         showToast: Boolean,
-        silent: Boolean = false
+        silent: Boolean = false,
+        profileId: String? = null
     ): Boolean {
         val p = requirePrefs()
-        val url = p.subscriptionUrl
-        if (url.isBlank()) {
+        val targetId = profileId ?: p.activeProfileId ?: p.profiles.firstOrNull()?.id
+        val profile = p.profiles.firstOrNull { it.id == targetId } ?: p.activeProfile()
+        if (profile == null) {
             _state.update { it.copy(error = text(R.string.error_subscription_url_required)) }
             return false
         }
-        _state.update { it.copy(refreshing = true, error = null) }
+        val url = p.profileUrl(profile.id)
+        if (url.isBlank()) {
+            if (profileId == null) {
+                _state.update { it.copy(error = text(R.string.error_subscription_url_required)) }
+            }
+            return false
+        }
+        if (profile.id == p.activeProfileId || profileId == null) {
+            _state.update { it.copy(refreshing = true, error = null) }
+        }
         val proxy = localProxy()
         val strings = Strings { id, args -> text(id, *args) }
         return withContext(Dispatchers.IO) {
             runCatching { SubscriptionRepository(p, strings).fetch(url, proxy) }
                 .fold(
                     onSuccess = { result ->
-                        val oldSelected = p.selectedId
-                        p.nodes = result.nodes
+                        val currentProfile = p.profiles.firstOrNull { it.id == profile.id } ?: profile
+                        val oldSelected = currentProfile.selectedId
                         val selected = result.nodes.firstOrNull { it.id == oldSelected }?.id
                             ?: result.nodes.first().id
-                        p.selectedId = selected
-                        autoSwitchTriedIds.clear()
-                        p.subscription = result.info
-                        p.updateIntervalHours = result.info.updateIntervalHours
+                        val updated = currentProfile.copy(
+                            subscription = result.info.copy(updatedAt = System.currentTimeMillis()),
+                            nodes = result.nodes,
+                            selectedId = selected
+                        )
+                        p.updateProfile(updated)
+                        if (p.activeProfileId == updated.id) {
+                            p.updateIntervalHours = result.info.updateIntervalHours
+                            autoSwitchTriedIds.clear()
+                        }
                         p.saveLastRefresh()
-                        _state.update {
-                            it.copy(
-                                nodes = result.nodes,
-                                selectedId = selected,
-                                subscription = result.info,
-                                refreshing = false,
-                                latencies = emptyMap(),
-                                healthLatencies = emptyMap(),
-                                toast = if (showToast) {
+                        _state.update { state ->
+                            val activeId = p.activeProfileId
+                            val active = p.activeProfile()
+                            state.copy(
+                                profiles = p.profiles,
+                                activeProfileId = activeId,
+                                nodes = active?.nodes ?: emptyList(),
+                                selectedId = active?.selectedId,
+                                subscription = active?.subscription ?: SubscriptionInfo(),
+                                subscriptionUrl = active?.let { p.profileUrl(it.id) } ?: "",
+                                refreshing = if (activeId == updated.id) false else state.refreshing,
+                                latencies = if (activeId == updated.id) emptyMap() else state.latencies,
+                                healthLatencies = if (activeId == updated.id) emptyMap() else state.healthLatencies,
+                                toast = if (showToast && activeId == updated.id) {
                                     text(R.string.toast_subscription_updated, result.nodes.size)
-                                } else null
+                                } else state.toast
                             )
                         }
-                        // Если VPN уже поднят, узлы/названия в конфиге устарели.
-                        scheduleReconnect(0L)
-                        pingAll()
+                        if (p.activeProfileId == updated.id) {
+                            scheduleReconnect(0L)
+                            pingAll()
+                        }
                         true
                     },
                     onFailure = { e ->
-                        _state.update {
-                            it.copy(
-                                refreshing = false,
-                                error = if (silent) {
-                                    null
+                        _state.update { state ->
+                            val activeId = p.activeProfileId
+                            state.copy(
+                                refreshing = if (activeId == profile.id) false else state.refreshing,
+                                error = if (silent || (profileId != null && activeId != profile.id)) {
+                                    state.error
                                 } else {
                                     e.message ?: text(R.string.error_refresh_failed)
                                 }
@@ -688,15 +789,12 @@ object VpnController {
         val p = requirePrefs()
         p.nodes = imported
         p.selectedId = imported.first().id
-        // Статистика подписки больше не относится к ручному списку узлов.
+        // Ручной импорт заменяет узлы активного профиля; ссылка подписки очищается.
         p.subscriptionUrl = ""
         p.subscription = SubscriptionInfo()
+        syncActiveState(p)
         _state.update {
             it.copy(
-                nodes = imported,
-                selectedId = imported.first().id,
-                subscriptionUrl = "",
-                subscription = SubscriptionInfo(),
                 latencies = emptyMap(),
                 healthLatencies = emptyMap(),
                 error = null,
@@ -709,16 +807,25 @@ object VpnController {
 
     // ------------------------------------------------------- резервная копия
 
-    /** Экспорт настроек в текст. HWID не попадает в копию: он привязан к устройству. */
+    /** Экспорт настроек и профилей. Ссылки подписок (токены) не включаются. */
     fun exportSettings(): String {
         val p = requirePrefs()
+        val profilesArr = JSONArray()
+        p.profiles.forEach { profile ->
+            profilesArr.put(
+                JSONObject()
+                    .put("id", profile.id)
+                    .put("name", profile.name)
+                    .put("subscription", subscriptionToJson(profile.subscription))
+                    .put("nodes", nodesToJson(profile.nodes))
+                    .put("selectedId", profile.selectedId ?: JSONObject.NULL)
+            )
+        }
         return JSONObject()
             .put("format", "rkn-vpn-backup")
-            .put("version", 1)
-            .put("subscriptionUrl", p.subscriptionUrl)
-            .put("subscription", subscriptionToJson(p.subscription))
-            .put("nodes", nodesToJson(p.nodes))
-            .put("selectedId", p.selectedId ?: JSONObject.NULL)
+            .put("version", 2)
+            .put("profiles", profilesArr)
+            .put("activeProfileId", p.activeProfileId ?: JSONObject.NULL)
             .put("rules", rulesToJson(p.rules))
             .put("routingMode", p.routingMode)
             .put("lanDirect", p.lanDirect)
@@ -730,6 +837,8 @@ object VpnController {
             .put("language", p.language)
             .put("updateIntervalHours", p.updateIntervalHours)
             .put("checkUrl", p.checkUrl)
+            .put("dnsMode", p.dnsMode)
+            .put("dnsCustom", p.dnsCustom)
             .put("autoSwitch", p.autoSwitch)
             .toString(2)
     }
@@ -742,10 +851,40 @@ object VpnController {
         }
         val p = requirePrefs()
         val restored = runCatching {
-            p.subscriptionUrl = obj.optString("subscriptionUrl")
-            p.subscription = subscriptionFromJson(obj.optString("subscription"))
-            p.nodes = nodesFromJson(obj.optString("nodes"))
-            p.selectedId = obj.optString("selectedId").takeIf { it.isNotBlank() }
+            if (obj.has("profiles")) {
+                val arr = obj.optJSONArray("profiles") ?: JSONArray()
+                val importedProfiles = profilesFromJson(arr.toString())
+                // Сохраняем существующие URL для совпадающих профилей, если они есть.
+                val existingUrls = p.profiles.associate { it.id to p.profileUrl(it.id) }
+                val finalProfiles = if (importedProfiles.isEmpty()) {
+                    listOf(SubscriptionProfile(id = Prefs.DEFAULT_PROFILE_ID))
+                } else importedProfiles
+                // Сначала обновим URL-слоты: для новых профилей URL пустой, для совпавших - старый.
+                finalProfiles.forEach { prof ->
+                    val url = existingUrls[prof.id] ?: ""
+                    p.setProfileUrl(prof.id, url)
+                }
+                // Удалим URL старых профилей, которых больше нет.
+                p.profiles.filter { old -> finalProfiles.none { it.id == old.id } }.forEach { old ->
+                    p.setProfileUrl(old.id, "")
+                }
+                p.profiles = finalProfiles
+                val requestedActive = obj.optString("activeProfileId").takeIf { it.isNotBlank() }
+                p.activeProfileId = requestedActive?.takeIf { id -> finalProfiles.any { it.id == id } }
+                    ?: finalProfiles.first().id
+            } else {
+                // Старый формат бэкапа: один профиль, возможно с URL.
+                val legacyUrl = obj.optString("subscriptionUrl")
+                val legacyProfile = SubscriptionProfile(
+                    id = Prefs.DEFAULT_PROFILE_ID,
+                    subscription = subscriptionFromJson(obj.optString("subscription")),
+                    nodes = nodesFromJson(obj.optString("nodes")),
+                    selectedId = obj.optString("selectedId").takeIf { it.isNotBlank() }
+                )
+                p.profiles = listOf(legacyProfile)
+                p.activeProfileId = legacyProfile.id
+                p.setProfileUrl(legacyProfile.id, legacyUrl)
+            }
             p.rules = rulesFromJson(obj.optString("rules"))
             p.routingMode = obj.optString("routingMode", "rules")
             p.lanDirect = obj.optBoolean("lanDirect", true)
@@ -761,9 +900,9 @@ object VpnController {
             p.language = obj.optString("language", "system")
             p.updateIntervalHours = obj.optInt("updateIntervalHours", 12).coerceIn(1, 168)
             p.checkUrl = obj.optString("checkUrl", Prefs.DEFAULT_CHECK_URL)
-            p.autoSwitch = if (obj.has("autoSwitch")) {
-                obj.optBoolean("autoSwitch", true)
-            } else true
+            if (obj.has("dnsMode")) p.dnsMode = obj.optString("dnsMode", Prefs.DNS_AUTO)
+            if (obj.has("dnsCustom")) p.dnsCustom = obj.optString("dnsCustom", "")
+            p.autoSwitch = if (obj.has("autoSwitch")) obj.optBoolean("autoSwitch", true) else true
         }
         if (restored.isFailure) {
             _state.update {
@@ -771,17 +910,10 @@ object VpnController {
             }
             return false
         }
-        val nodes = p.nodes
-        val selected = p.selectedId?.takeIf { id -> nodes.any { it.id == id } }
-            ?: nodes.firstOrNull()?.id
-        p.selectedId = selected
         autoSwitchTriedIds.clear()
+        syncActiveState(p)
         _state.update {
             it.copy(
-                nodes = nodes,
-                selectedId = selected,
-                subscriptionUrl = p.subscriptionUrl,
-                subscription = p.subscription,
                 rules = p.rules,
                 routingMode = p.routingMode,
                 lanDirect = p.lanDirect,
@@ -790,6 +922,8 @@ object VpnController {
                 splitMode = p.splitMode,
                 splitApps = p.splitApps,
                 checkUrl = p.checkUrl,
+                dnsMode = p.dnsMode,
+                dnsCustom = p.dnsCustom,
                 autoSwitch = p.autoSwitch,
                 theme = p.theme,
                 language = p.language,

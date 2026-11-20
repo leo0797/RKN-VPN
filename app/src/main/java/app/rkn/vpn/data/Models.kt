@@ -56,6 +56,23 @@ data class SubscriptionInfo(
     val hasExpire: Boolean get() = expire > 0
 }
 
+/** Профиль подписки: узлы, метаданные и выбранный сервер (URL хранится отдельно в SecureStorage). */
+data class SubscriptionProfile(
+    val id: String,
+    val name: String = "",
+    val subscription: SubscriptionInfo = SubscriptionInfo(),
+    val nodes: List<ProxyNode> = emptyList(),
+    val selectedId: String? = null
+) {
+    fun selectedNode(): ProxyNode? {
+        val id = selectedId ?: return nodes.firstOrNull()
+        return nodes.firstOrNull { it.id == id } ?: nodes.firstOrNull()
+    }
+
+    val displayName: String
+        get() = name.ifBlank { subscription.title.ifBlank { "" } }
+}
+
 /** Единое состояние приложения для UI. */
 data class AppState(
     val connected: Boolean = false,
@@ -74,6 +91,8 @@ data class AppState(
     val selectedId: String? = null,
     val subscription: SubscriptionInfo = SubscriptionInfo(),
     val subscriptionUrl: String = "",
+    val profiles: List<SubscriptionProfile> = emptyList(),
+    val activeProfileId: String? = null,
     val rules: List<RoutingRule> = emptyList(),
     val latencies: Map<String, Int?> = emptyMap(),
     val healthLatencies: Map<String, Int?> = emptyMap(),
@@ -215,4 +234,49 @@ fun subscriptionFromJson(value: String?): SubscriptionInfo {
             hwidNotSupported = o.optBoolean("hwidNotSupported")
         )
     }.getOrDefault(SubscriptionInfo())
+}
+
+fun profilesToJson(profiles: List<SubscriptionProfile>): String {
+    val arr = JSONArray()
+    profiles.forEach { p ->
+        arr.put(
+            JSONObject()
+                .put("id", p.id)
+                .put("name", p.name)
+                .put("subscription", subscriptionToJson(p.subscription))
+                .put("nodes", nodesToJson(p.nodes))
+                .put("selectedId", p.selectedId ?: JSONObject.NULL)
+        )
+    }
+    return arr.toString()
+}
+
+fun profilesFromJson(value: String?): List<SubscriptionProfile> {
+    if (value.isNullOrBlank()) return emptyList()
+    return runCatching {
+        val arr = JSONArray(value)
+        buildList {
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i)
+                if (o != null) {
+                    val id = o.optString("id")
+                    if (id.isNotBlank()) {
+                        val nodes = nodesFromJson(o.optString("nodes"))
+                        val selectedId = o.optString("selectedId").takeIf { it.isNotBlank() }
+                            ?.takeIf { sid -> nodes.any { it.id == sid } }
+                            ?: nodes.firstOrNull()?.id
+                        add(
+                            SubscriptionProfile(
+                                id = id,
+                                name = o.optString("name"),
+                                subscription = subscriptionFromJson(o.optString("subscription")),
+                                nodes = nodes,
+                                selectedId = selectedId
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }.getOrDefault(emptyList())
 }

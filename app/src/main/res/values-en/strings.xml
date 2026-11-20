@@ -322,4 +322,15 @@
     <string name="dns_custom_hint">IP address or DoH/DoT/QUIC (e.g. 1.1.1.1, https://dns.example/dns-query)</string>
     <string name="dns_custom_invalid">Enter a valid IP address or a supported DNS endpoint (https://, tls://, quic:// or system)</string>
     <string name="dns_note">Auto: DoH plus policy for .ru, .su, .рф on Russian public DNS (77.88.8.8), fallback to system. Changes apply on reconnect.</string>
+
+    <!-- Subscription profiles -->
+    <string name="profiles_title">Subscription profiles</string>
+    <string name="profile_add">Add profile</string>
+    <string name="profile_delete">Delete profile</string>
+    <string name="profile_switch">Switch</string>
+    <string name="profile_refresh_all">Refresh all</string>
+    <string name="profile_default_name">Profile %1</string>
+    <string name="profile_active">Active</string>
+    <string name="profile_added">Profile added</string>
+    <string name="profile_deleted">Profile deleted</string>
 </resources>

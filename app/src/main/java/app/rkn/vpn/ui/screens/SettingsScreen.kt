@@ -208,12 +208,46 @@ fun SettingsScreen(
                     )
                 }
             ) {
+                if (state.profiles.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.profiles_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    state.profiles.forEachIndexed { index, profile ->
+                        val isActive = profile.id == state.activeProfileId
+                        val name = profile.displayName.ifBlank { stringResource(R.string.profile_default_name, index + 1) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = isActive,
+                                onClick = { VpnController.switchProfile(profile.id) },
+                                modifier = Modifier.weight(1f),
+                                label = {
+                                    SingleLineLabel(
+                                        text = if (isActive) "$name · ${stringResource(R.string.profile_active)}" else name,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            )
+                            OutlinedButton(onClick = { VpnController.refreshProfile(profile.id) }) {
+                                Text(stringResource(R.string.refresh))
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.subscription_url_label)) },
-                    placeholder = { Text("https://panel.example.com/sub/…") },
+                    placeholder = { Text("https://panel.example.com/sub/...") },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -252,6 +286,29 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
+                        onClick = { VpnController.addProfile(url.trim()) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.profile_add),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { state.activeProfileId?.let { VpnController.removeProfile(it) } },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        SingleLineLabel(
+                            text = stringResource(R.string.profile_delete),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
                         onClick = { openImport(IMPORT_SUBSCRIPTION) },
                         modifier = Modifier.weight(1f)
                     ) {
@@ -271,6 +328,23 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        updateScope.launch {
+                            VpnController.init(context)
+                            VpnController.refreshAllProfilesBackground()
+                        }
+                    },
+                    enabled = !state.refreshing,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SingleLineLabel(
+                        text = stringResource(R.string.profile_refresh_all),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
                 if (!subscriptionMessage.isNullOrBlank()) {
                     Spacer(Modifier.height(8.dp))

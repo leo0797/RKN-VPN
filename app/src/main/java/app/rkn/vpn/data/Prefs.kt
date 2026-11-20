@@ -17,27 +17,145 @@ class Prefs(context: Context) {
     // Токен подписки и raw-JSON узлов содержат пароли и UUID — держим их в Keystore.
     private val secure = SecureStorage(sp)
 
-    // ---------- подписка ----------
+    init {
+        migrateProfilesIfNeeded()
+    }
+
+    // ---------- профили подписок ----------
+
+    var profiles: List<SubscriptionProfile>
+        get() = profilesFromJson(sp.getString(KEY_PROFILES, null))
+        set(value) {
+            sp.edit().putString(KEY_PROFILES, profilesToJson(value)).apply()
+            val active = sp.getString(KEY_ACTIVE_PROFILE, null)
+            if (active == null || value.none { it.id == active }) {
+                activeProfileId = value.firstOrNull()?.id
+            }
+        }
+
+    var activeProfileId: String?
+        get() {
+            val stored = sp.getString(KEY_ACTIVE_PROFILE, null)
+            val list = profiles
+            return stored?.takeIf { id -> list.any { it.id == id } } ?: list.firstOrNull()?.id
+        }
+        set(value) {
+            val resolved = value?.takeIf { id -> profiles.any { it.id == id } }
+                ?: profiles.firstOrNull()?.id
+            sp.edit().putString(KEY_ACTIVE_PROFILE, resolved).apply()
+        }
+
+    fun activeProfile(): SubscriptionProfile? =
+        profiles.firstOrNull { it.id == activeProfileId } ?: profiles.firstOrNull()
+
+    fun profileUrl(id: String): String = secure.get(profileUrlKey(id)) ?: ""
+
+    fun setProfileUrl(id: String, url: String) {
+        secure.put(profileUrlKey(id), url.trim())
+    }
+
+    fun updateProfile(updated: SubscriptionProfile) {
+        val list = profiles.toMutableList()
+        val idx = list.indexOfFirst { it.id == updated.id }
+        if (idx >= 0) list[idx] = updated else list.add(updated)
+        profiles = list
+    }
+
+    fun removeProfile(id: String) {
+        val remaining = profiles.filterNot { it.id == id }
+        secure.put(profileUrlKey(id), null)
+        profiles = remaining
+        if (sp.getString(KEY_ACTIVE_PROFILE, null) == id) {
+            activeProfileId = remaining.firstOrNull()?.id
+        }
+    }
+
+    fun addProfile(profile: SubscriptionProfile, url: String): SubscriptionProfile {
+        val list = profiles + profile
+        secure.put(profileUrlKey(profile.id), url.trim())
+        profiles = list
+        if (sp.getString(KEY_ACTIVE_PROFILE, null) == null) activeProfileId = profile.id
+        return profile
+    }
+
+    fun createProfile(name: String = "", url: String = ""): SubscriptionProfile {
+        val profile = SubscriptionProfile(id = java.util.UUID.randomUUID().toString(), name = name)
+        return addProfile(profile, url)
+    }
+
+    private fun migrateProfilesIfNeeded() {
+        if (sp.contains(KEY_PROFILES)) return
+        val legacyUrl = secure.get(KEY_SUB_URL) ?: ""
+        val legacyInfo = subscriptionFromJson(sp.getString(KEY_SUB_INFO, null))
+        val legacyNodes = nodesFromJson(secure.get(KEY_NODES))
+        val legacySelected = sp.getString(KEY_SELECTED, null)
+            ?.takeIf { id -> legacyNodes.any { it.id == id } }
+            ?: legacyNodes.firstOrNull()?.id
+        val profile = SubscriptionProfile(
+            id = DEFAULT_PROFILE_ID,
+            name = "",
+            subscription = legacyInfo,
+            nodes = legacyNodes,
+            selectedId = legacySelected
+        )
+        sp.edit().putString(KEY_PROFILES, profilesToJson(listOf(profile))).apply()
+        sp.edit().putString(KEY_ACTIVE_PROFILE, profile.id).apply()
+        if (legacyUrl.isNotBlank()) {
+            secure.put(profileUrlKey(profile.id), legacyUrl)
+        }
+        secure.put(KEY_SUB_URL, null)
+        secure.put(KEY_NODES, null)
+        sp.edit().remove(KEY_SUB_INFO).remove(KEY_SELECTED).apply()
+    }
+
+    // ---------- подписка (активный профиль, совместимость) ----------
 
     var subscriptionUrl: String
-        get() = secure.get(KEY_SUB_URL) ?: ""
-        set(value) = secure.put(KEY_SUB_URL, value.trim())
+        get() = activeProfile()?.let { profileUrl(it.id) } ?: ""
+        set(value) {
+            val id = activeProfileId ?: ensureDefaultProfile()
+            setProfileUrl(id, value)
+        }
 
     var subscription: SubscriptionInfo
-        get() = subscriptionFromJson(sp.getString(KEY_SUB_INFO, null))
-        set(value) = sp.edit().putString(KEY_SUB_INFO, subscriptionToJson(value)).apply()
+        get() = activeProfile()?.subscription ?: SubscriptionInfo()
+        set(value) {
+            val profile = activeProfile() ?: ensureDefaultProfileObject()
+            updateProfile(profile.copy(subscription = value))
+        }
 
     var nodes: List<ProxyNode>
-        get() = nodesFromJson(secure.get(KEY_NODES))
-        set(value) = secure.put(KEY_NODES, nodesToJson(value))
+        get() = activeProfile()?.nodes ?: emptyList()
+        set(value) {
+            val profile = activeProfile() ?: ensureDefaultProfileObject()
+            val selected = profile.selectedId?.takeIf { sid -> value.any { it.id == sid } }
+                ?: value.firstOrNull()?.id
+            updateProfile(profile.copy(nodes = value, selectedId = selected))
+        }
 
     var selectedId: String?
-        get() = sp.getString(KEY_SELECTED, null)
-        set(value) = sp.edit().putString(KEY_SELECTED, value).apply()
+        get() = activeProfile()?.selectedId
+        set(value) {
+            val profile = activeProfile() ?: return
+            val resolved = value?.takeIf { sid -> profile.nodes.any { it.id == sid } }
+                ?: profile.nodes.firstOrNull()?.id
+            updateProfile(profile.copy(selectedId = resolved))
+        }
 
-    fun selectedNode(): ProxyNode? {
-        val id = selectedId ?: return nodes.firstOrNull()
-        return nodes.firstOrNull { it.id == id } ?: nodes.firstOrNull()
+    fun selectedNode(): ProxyNode? = activeProfile()?.selectedNode()
+
+    private fun ensureDefaultProfile(): String {
+        val id = DEFAULT_PROFILE_ID
+        if (profiles.none { it.id == id }) {
+            profiles = listOf(SubscriptionProfile(id = id))
+        }
+        activeProfileId = id
+        return id
+    }
+
+    private fun ensureDefaultProfileObject(): SubscriptionProfile {
+        val id = ensureDefaultProfile()
+        return profiles.first { it.id == id }
     }
 
     // ---------- маршрутизация ----------
@@ -194,6 +312,10 @@ class Prefs(context: Context) {
         private const val KEY_SUB_INFO = "sub_info"
         private const val KEY_NODES = "nodes"
         private const val KEY_SELECTED = "selected"
+        private const val KEY_PROFILES = "profiles"
+        private const val KEY_ACTIVE_PROFILE = "active_profile_id"
+        const val DEFAULT_PROFILE_ID = "profile_default"
+        private fun profileUrlKey(id: String) = "sub_url_$id"
         private const val KEY_RULES = "rules"
         private const val KEY_MODE = "routing_mode"
         private const val KEY_LAN_DIRECT = "lan_direct"

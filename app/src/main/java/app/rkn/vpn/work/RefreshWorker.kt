@@ -24,14 +24,14 @@ class RefreshWorker(appContext: Context, params: WorkerParameters) :
         // Воркер может запуститься в новом процессе после смерти приложения.
         VpnController.init(applicationContext)
         val prefs = Prefs(applicationContext)
-        if (prefs.subscriptionUrl.isBlank()) return Result.success()
+        val hasAnyUrl = prefs.profiles.any { prefs.profileUrl(it.id).isNotBlank() }
+        if (!hasAnyUrl) return Result.success()
 
-        // Ошибка сети — не Result.failure(): это навсегда остановило бы periodic
+        // Ошибку не возвращаем как Result.failure(): это навсегда остановило бы periodic
         // work. Следующий запланированный запуск попробует снова.
-        runCatching { VpnController.refreshSubscriptionBackground() }
+        runCatching { VpnController.refreshAllProfilesBackground() }
         return Result.success()
     }
-
     companion object {
         private const val UNIQUE_NAME = "subscription_refresh"
 
