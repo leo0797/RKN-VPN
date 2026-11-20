@@ -454,35 +454,47 @@ fun SettingsScreen(
                         onClick = { logs = VpnController.readLogs().ifBlank { context.getString(R.string.log_empty) } },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(stringResource(R.string.core_log))
+                        SingleLineLabel(
+                            text = stringResource(R.string.core_log),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
-                    OutlinedButton(onClick = { VpnController.clearLogs() }) {
-                        Text(stringResource(R.string.clear))
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
-                        onClick = {
-                            val report = Diagnostics.buildReport(
-                                context = context,
-                                state = state,
-                                logs = VpnController.readLogs(),
-                                appVersion = BuildConfig.VERSION_NAME,
-                                androidVersion = Build.VERSION.RELEASE,
-                                device = "${Build.MANUFACTURER} ${Build.MODEL}"
-                            )
-                            clipboardManager.setText(AnnotatedString(report))
-                            diagnosticsMessage = context.getString(R.string.diagnostics_copied)
-                        },
+                        onClick = { VpnController.clearLogs() },
                         modifier = Modifier.weight(1f)
                     ) {
                         SingleLineLabel(
-                            text = stringResource(R.string.copy_diagnostics),
+                            text = stringResource(R.string.clear),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            style = MaterialTheme.typography.labelLarge
                         )
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        val report = Diagnostics.buildReport(
+                            context = context,
+                            state = state,
+                            logs = VpnController.readLogs(),
+                            appVersion = BuildConfig.VERSION_NAME,
+                            androidVersion = Build.VERSION.RELEASE,
+                            device = "${Build.MANUFACTURER} ${Build.MODEL}"
+                        )
+                        clipboardManager.setText(AnnotatedString(report))
+                        diagnosticsMessage = context.getString(R.string.diagnostics_copied)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    SingleLineLabel(
+                        text = stringResource(R.string.copy_diagnostics),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
                 Text(
                     text = stringResource(R.string.diagnostics_note),
