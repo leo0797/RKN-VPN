@@ -13,7 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -271,7 +270,9 @@ private fun CameraErrorContent(
     }
 }
 
-@OptIn(ExperimentalGetImage::class)
+// В camera-core 1.3.4 ExperimentalGetImage не размечен @RequiresOptIn, поэтому
+// @OptIn не работает; подавляем конкретное предупреждение lint на этой функции.
+@Suppress("UnsafeOptInUsageError")
 private fun analyzeFrame(
     image: ImageProxy,
     scanner: BarcodeScanner?,

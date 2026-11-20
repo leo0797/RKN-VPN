@@ -128,7 +128,7 @@ jobs:
           arch: x86
           profile: Nexus 5
           emulator-boot-timeout: 600
-          script: ./gradlew :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
+          script: chmod +x ./gradlew && ./gradlew :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
 
   publish:
     name: Publish signed GitHub Release

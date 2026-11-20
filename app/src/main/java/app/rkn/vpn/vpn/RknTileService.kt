@@ -108,6 +108,7 @@ class RknTileService : TileService() {
         tile.updateTile()
     }
 
+    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
     private fun openApp(autoConnect: Boolean) {
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

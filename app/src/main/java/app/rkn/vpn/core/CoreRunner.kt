@@ -28,7 +28,22 @@ class CoreRunner(context: Context) {
         f.exists() && f.length() > 1_000_000
     }.getOrDefault(false)
 
-    fun isRunning(): Boolean = process?.isAlive == true
+    fun isRunning(): Boolean = process?.let { isAlive(it) } == true
+
+    /** Process.isAlive() появился только в API 26 — поддерживаем API 24. */
+    private fun isAlive(proc: Process): Boolean = runCatching {
+        proc.exitValue()
+        false
+    }.getOrDefault(true)
+
+    /** Аналог Process.waitFor(timeout) для API 24. */
+    private fun waitFor(proc: Process, timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (isAlive(proc) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50)
+        }
+        return !isAlive(proc)
+    }
 
     fun start(configJson: String, readyPort: Int) {
         stop()
@@ -45,15 +60,24 @@ class CoreRunner(context: Context) {
             "-f", configFile.absolutePath
         )
         pb.redirectErrorStream(true)
-        pb.redirectOutput(logFile)
         pb.environment()["TMPDIR"] = appContext.cacheDir.absolutePath
-        process = pb.start()
+        // ProcessBuilder.redirectOutput(File) требует API 26, поэтому читаем
+        // объединённый stdout/stderr сами и пишем его в тот же файл лога.
+        val proc = pb.start()
+        Thread {
+            runCatching {
+                logFile.outputStream().buffered().use { out ->
+                    proc.inputStream.use { input -> input.copyTo(out) }
+                }
+            }
+        }.apply { isDaemon = true; name = "mihomo-log"; start() }
+        process = proc
 
         // Ждём, пока mihomo откроет mixed-port.
         val deadline = System.currentTimeMillis() + READY_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
             val proc = process ?: break
-            if (!proc.isAlive) {
+            if (!isAlive(proc)) {
                 stop()
                 error(appContext.getString(R.string.error_core_exited, logTail(25)))
             }
@@ -75,8 +99,12 @@ class CoreRunner(context: Context) {
         process = null
         if (proc != null) {
             runCatching { proc.destroy() }
-            runCatching { proc.waitFor(2, java.util.concurrent.TimeUnit.SECONDS) }
-            if (proc.isAlive) runCatching { proc.destroyForcibly() }
+            if (!waitFor(proc, 2_000)) {
+                // destroyForcibly() тоже API 26; повторный destroy на API 24
+                // завершает процесс принудительно.
+                runCatching { proc.destroy() }
+                waitFor(proc, 1_000)
+            }
         }
         // В конфиге лежат пароли локального SOCKS/API и секреты аутбаундов —
         // не оставляем его на диске после остановки ядра. start() создаст его заново.
