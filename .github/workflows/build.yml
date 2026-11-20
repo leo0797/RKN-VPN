@@ -65,17 +65,17 @@ jobs:
       - name: Run unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:testDebugUnitTest --stacktrace
+          bash scripts/gradle-with-retry.sh :app:testDebugUnitTest --stacktrace
 
       - name: Run Android lint
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:lintRelease --stacktrace
+          bash scripts/gradle-with-retry.sh :app:lintRelease --stacktrace
 
       - name: Assemble release APK
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:assembleRelease --stacktrace
+          bash scripts/gradle-with-retry.sh :app:assembleRelease --stacktrace
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -91,6 +91,9 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # Пять одновременно резолвящих Gradle-процессов часто получают HTTP 429
+      # от Maven Central. Два параллельных эмулятора всё равно покрывают API 24–28.
+      max-parallel: 2
       matrix:
         # hev-socks5-tunnel объявляет minSdk 29; приложение — 24. Проверяем
         # реальный запуск на всех поддерживаемых старых API, а не только сборку.
@@ -128,7 +131,7 @@ jobs:
           arch: x86
           profile: Nexus 5
           emulator-boot-timeout: 600
-          script: chmod +x ./gradlew && ./gradlew :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
+          script: chmod +x ./gradlew && bash scripts/gradle-with-retry.sh :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
 
   publish:
     name: Publish signed GitHub Release
