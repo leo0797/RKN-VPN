@@ -1,5 +1,6 @@
 package app.rkn.vpn.data
 
+import app.rkn.vpn.util.SystemKillSwitch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -90,6 +91,7 @@ data class AppState(
     val checkUrl: String = Prefs.DEFAULT_CHECK_URL,
     val autoSwitch: Boolean = true,
     val showKillSwitchStatus: Boolean = true,
+    val killSwitchStatus: SystemKillSwitch.Status = SystemKillSwitch.Status.UNKNOWN,
     val theme: String = "system",
     val language: String = "system"
 ) {

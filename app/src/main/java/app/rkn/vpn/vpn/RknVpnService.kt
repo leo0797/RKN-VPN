@@ -18,6 +18,7 @@ import app.rkn.vpn.core.CoreRunner
 import app.rkn.vpn.core.HevTunnel
 import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.util.Format
+import app.rkn.vpn.util.SystemKillSwitch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -243,6 +244,7 @@ class RknVpnService : VpnService() {
                         startedAt, apiPort, credentials.secret,
                         mixedPort, credentials.user, credentials.password
                     )
+                    reportKillSwitchStatus()
                     startForegroundCompat(buildNotification(node.name, startedAt))
                     startStats()
                 } catch (t: Throwable) {
@@ -258,6 +260,14 @@ class RknVpnService : VpnService() {
         }
     }
 
+
+    private fun reportKillSwitchStatus() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            VpnController.reportKillSwitchStatus(
+                SystemKillSwitch.serviceStatus(isAlwaysOn, isLockdownEnabled)
+            )
+        }
+    }
     // ------------------------------------------------------------------- stop
 
     private fun stopVpn(startId: Int = 0) {
@@ -362,6 +372,7 @@ class RknVpnService : VpnService() {
                         System.currentTimeMillis(), current.apiPort, current.credentials.secret,
                         current.mixedPort, current.credentials.user, current.credentials.password
                     )
+                    reportKillSwitchStatus()
                     startForegroundCompat(buildNotification(current.nodeName, current.startedAt))
                     startStats()
                     return@launch

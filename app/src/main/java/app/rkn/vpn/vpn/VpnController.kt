@@ -32,6 +32,7 @@ import app.rkn.vpn.data.rulesToJson
 import app.rkn.vpn.data.subscriptionFromJson
 import app.rkn.vpn.data.subscriptionToJson
 import app.rkn.vpn.util.AppLanguage
+import app.rkn.vpn.util.SystemKillSwitch
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
@@ -116,6 +117,7 @@ object VpnController {
             checkUrl = p.checkUrl,
             autoSwitch = p.autoSwitch,
             showKillSwitchStatus = p.showKillSwitchStatus,
+            killSwitchStatus = SystemKillSwitch.status(ctx),
             theme = p.theme,
             language = p.language,
             corePresent = CoreRunner(ctx).isAvailable()
@@ -401,15 +403,17 @@ object VpnController {
                 download = 0L,
                 upSpeed = 0L,
                 downSpeed = 0L,
-                healthAvailable = false
+                healthAvailable = false,
+                killSwitchStatus = appContext?.let { SystemKillSwitch.status(it) }
+                    ?: SystemKillSwitch.Status.UNKNOWN
             )
         }
         refreshTile()
     }
 
     /**
-     * @param fatal false для временных сбоев, когда TUN ещё открыт и ядро
-     * перезапускается: в этом случае намерение пользователя сохраняем.
+     * @param fatal false ��� �६����� ᡮ��, ����� TUN ��� ����� � ��
+     * ��१���᪠����: � �⮬ ��砥 ����७�� ���짮��⥫� ��࠭塞.
      */
     fun serviceError(message: String, fatal: Boolean = true) {
         if (fatal) {
@@ -431,12 +435,13 @@ object VpnController {
                 nodeReachable = null,
                 error = message,
                 startedAt = 0L,
-                healthAvailable = false
+                healthAvailable = false,
+                killSwitchStatus = appContext?.let { ctx -> SystemKillSwitch.status(ctx) }
+                    ?: SystemKillSwitch.Status.UNKNOWN
             )
         }
         refreshTile()
     }
-
     // ------------------------------------------------------------------ nodes
 
     fun selectNode(id: String) {
@@ -554,6 +559,15 @@ object VpnController {
         val p = requirePrefs()
         p.showKillSwitchStatus = visible
         _state.update { it.copy(showKillSwitchStatus = visible) }
+    }
+
+    fun reportKillSwitchStatus(status: SystemKillSwitch.Status) {
+        _state.update { it.copy(killSwitchStatus = status) }
+    }
+
+    fun refreshKillSwitchStatus() {
+        val ctx = appContext ?: return
+        _state.update { it.copy(killSwitchStatus = SystemKillSwitch.status(ctx)) }
     }
 
     fun refreshSubscription(showToast: Boolean = true) {

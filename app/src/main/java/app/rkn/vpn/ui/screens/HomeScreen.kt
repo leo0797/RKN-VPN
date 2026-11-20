@@ -140,10 +140,14 @@ fun HomeScreen(
         }
     }
 
-    val killSwitchOn = SystemKillSwitch.isOn(context)
+    val killSwitchStatus = state.killSwitchStatus
     val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
     val showBatteryHint = listOf("xiaomi", "huawei", "samsung")
         .any { manufacturer.contains(it) }
+
+    fun openVpnSettings() {
+        runCatching { context.startActivity(Intent(Settings.ACTION_VPN_SETTINGS)) }
+    }
 
     fun openBatterySettings() {
         var intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
@@ -248,17 +252,25 @@ fun HomeScreen(
                     }
                 }
             ) {
+                val (statusText, statusColor) = when (killSwitchStatus) {
+                    SystemKillSwitch.Status.ON ->
+                        stringResource(R.string.kill_switch_on) to MaterialTheme.colorScheme.secondary
+                    SystemKillSwitch.Status.OFF ->
+                        stringResource(R.string.kill_switch_off) to MaterialTheme.colorScheme.error
+                    SystemKillSwitch.Status.UNKNOWN ->
+                        stringResource(R.string.kill_switch_unknown) to MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Text(
-                    text = stringResource(
-                        if (killSwitchOn) R.string.kill_switch_on else R.string.kill_switch_off
-                    ),
+                    text = statusText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (killSwitchOn) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    }
+                    color = statusColor
                 )
+                if (killSwitchStatus == SystemKillSwitch.Status.UNKNOWN) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { openVpnSettings() }) {
+                        Text(stringResource(R.string.open_android_vpn_settings))
+                    }
+                }
             }
             Spacer(Modifier.height(12.dp))
         }

@@ -296,8 +296,8 @@
     <!-- Kill switch и батарея -->
     <string name="kill_switch_title">Защита при обрыве VPN</string>
     <string name="kill_switch_on">Kill switch включён: Always-on VPN и блокировка без VPN активны</string>
-    <string name="kill_switch_off">Kill switch выключен — включите Always-on VPN и «Блокировать подключения без VPN» в настройках Android</string>
-    <string name="kill_switch_unknown">Статус kill switch доступен на Android 10 и новее</string>
+    <string name="kill_switch_off">Kill switch выключен. Включите Always-on VPN и «Блокировать подключения без VPN» в настройках Android</string>
+    <string name="kill_switch_unknown">Не удалось определить статус защиты. Проверьте в настройках Android</string>
     <string name="hide_kill_switch_cd">Скрыть статус защиты</string>
     <string name="show_kill_switch_status">Показывать статус защиты на главном экране</string>
     <string name="battery_hint_title">Не дайте системе убить VPN</string>
