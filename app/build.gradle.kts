@@ -132,7 +132,7 @@ dependencies {
     // JVM-тесты парсеров (Robolectric даёт настоящие android.net.Uri и org.json).
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
 
     // Эмуляторный smoke-тест для API 24–28: проверяет, что overrideLibrary
     // для hev-socks5-tunnel не ломает запуск на старых устройствах.
