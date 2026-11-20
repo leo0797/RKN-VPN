@@ -5,7 +5,6 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import java.security.KeyStore
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -40,8 +39,12 @@ internal class SecureStorage(private val sp: SharedPreferences) {
 
     private fun encrypt(value: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        val iv = ByteArray(IV_BYTES).also { SecureRandom().nextBytes(it) }
-        cipher.init(Cipher.ENCRYPT_MODE, key(), GCMParameterSpec(TAG_BITS, iv))
+        // Ключ создан с setRandomizedEncryptionRequired(true): Keystore сам
+        // генерирует IV и запрещает caller-provided IV (Android 12+ падал
+        // InvalidAlgorithmParameterException). IV всё равно сохраняем вместе с
+        // ciphertext — он нужен для decrypt().
+        cipher.init(Cipher.ENCRYPT_MODE, key())
+        val iv = cipher.iv
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
         val combined = ByteArray(iv.size + encrypted.size)
         System.arraycopy(iv, 0, combined, 0, iv.size)

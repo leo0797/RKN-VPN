@@ -1,11 +1,9 @@
-Что нового в 1.0.24:
+Что нового в 1.0.25:
 
-• Карточку «Защита при обрыве VPN» теперь можно скрыть кнопкой × на главном экране. Вернуть её можно в разделе «Ещё → Безопасность».
-• APK в релизах получили понятные имена: RKN-VPN-версия-архитектура.apk. Внутренняя проверка обновлений учитывает новые имена.
-• Обновлены скриншоты в README.
+• Исправлен вылет при добавлении подписки на Android 12+: Keystore больше не получает собственный IV — теперь IV генерируется шифром, как требует Android Keystore.
+• Добавлена регрессионная проверка защищённого хранилища.
 
-What's new in 1.0.24:
+What's new in 1.0.25:
 
-• The "Protection when the VPN drops" card can now be dismissed with the × button on Home. Restore it under More → Security.
-• Release APKs now have readable names: RKN-VPN-version-architecture.apk. The in-app update check supports the new names.
-• README screenshots updated.
+• Fixed a crash when adding a subscription on Android 12+: the Keystore cipher now generates its own IV instead of receiving one from the app.
+• Added a regression test for secure storage.
