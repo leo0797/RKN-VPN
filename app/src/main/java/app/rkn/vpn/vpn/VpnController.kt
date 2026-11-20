@@ -115,6 +115,7 @@ object VpnController {
             splitApps = p.splitApps,
             checkUrl = p.checkUrl,
             autoSwitch = p.autoSwitch,
+            showKillSwitchStatus = p.showKillSwitchStatus,
             theme = p.theme,
             language = p.language,
             corePresent = CoreRunner(ctx).isAvailable()
@@ -546,6 +547,13 @@ object VpnController {
         val p = requirePrefs()
         p.autoSwitch = enabled
         _state.update { it.copy(autoSwitch = enabled) }
+    }
+
+    /** Карточка статуса kill switch на главном экране: скрыть или вернуть. */
+    fun setKillSwitchCardVisible(visible: Boolean) {
+        val p = requirePrefs()
+        p.showKillSwitchStatus = visible
+        _state.update { it.copy(showKillSwitchStatus = visible) }
     }
 
     fun refreshSubscription(showToast: Boolean = true) {

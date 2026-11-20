@@ -152,6 +152,19 @@ jobs:
           name: rkn-vpn-${{ github.run_number }}
           path: apk
 
+      # Имя ассета должно говорить пользователю, что это и для какого устройства.
+      # ABI оставляем в имени: in-app обновление ищет ассет по подстроке ABI.
+      - name: Name APKs
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for apk in apk/*.apk; do
+            name="$(basename "$apk")"
+            abi="$(printf '%s' "$name" | sed -nE 's/^app-(.*)-release\.apk$/\1/p')"
+            if [ -z "$abi" ]; then abi="universal"; fi
+            mv "$apk" "apk/RKN-VPN-${VERSION}-${abi}.apk"
+          done
+          ls -1 apk
+
       - name: Append SHA-256 checksums to release notes
         run: |
           cp CHANGELOG_LATEST.md RELEASE_BODY.md

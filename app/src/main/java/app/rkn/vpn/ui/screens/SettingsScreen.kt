@@ -53,6 +53,7 @@ import app.rkn.vpn.core.UpdateChecker.Release
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.ui.QrScanActivity
 import app.rkn.vpn.ui.components.HelpButton
+import app.rkn.vpn.ui.components.LabeledSwitch
 import app.rkn.vpn.ui.components.ScreenHeader
 import app.rkn.vpn.ui.components.SectionCard
 import app.rkn.vpn.ui.components.SingleLineLabel
@@ -393,6 +394,12 @@ fun SettingsScreen(
                 ) {
                     Text(stringResource(R.string.open_android_vpn_settings))
                 }
+                Spacer(Modifier.height(8.dp))
+                LabeledSwitch(
+                    title = stringResource(R.string.show_kill_switch_status),
+                    checked = state.showKillSwitchStatus,
+                    onChange = { VpnController.setKillSwitchCardVisible(it) }
+                )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.socks_text),

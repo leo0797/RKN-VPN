@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,7 +93,8 @@ fun HomeScreen(
     onBest: () -> Unit,
     onOpenServers: () -> Unit,
     onAddSubscription: () -> Unit,
-    onSaveSubscription: (String) -> Unit
+    onSaveSubscription: (String) -> Unit,
+    onDismissKillSwitch: () -> Unit
 ) {
     var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(state.connected, state.startedAt) {
@@ -231,20 +233,35 @@ fun HomeScreen(
         }
 
         // -------- системная защита от утечек --------
-        SectionCard(title = stringResource(R.string.kill_switch_title)) {
-            Text(
-                text = stringResource(
-                    if (killSwitchOn) R.string.kill_switch_on else R.string.kill_switch_off
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (killSwitchOn) {
-                    MaterialTheme.colorScheme.secondary
-                } else {
-                    MaterialTheme.colorScheme.error
+        if (state.showKillSwitchStatus) {
+            SectionCard(
+                title = stringResource(R.string.kill_switch_title),
+                trailing = {
+                    IconButton(
+                        onClick = onDismissKillSwitch,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.hide_kill_switch_cd)
+                        )
+                    }
                 }
-            )
+            ) {
+                Text(
+                    text = stringResource(
+                        if (killSwitchOn) R.string.kill_switch_on else R.string.kill_switch_off
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (killSwitchOn) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                )
+            }
+            Spacer(Modifier.height(12.dp))
         }
-        Spacer(Modifier.height(12.dp))
 
         if (showBatteryHint) {
             Surface(

@@ -11,9 +11,10 @@ Quick Settings tile.
 
 ## Screenshots
 
-| Home | Servers and rules |
+| Home | Servers |
 |---|---|
 | ![Home screen](art/screens/home.png) | ![Server list](art/screens/servers.png) |
+| ![Rules](art/screens/rules.png) | ![More](art/screens/more.png) |
 
 ## Features
 

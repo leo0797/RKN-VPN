@@ -127,6 +127,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_KILL_SWITCH_REMINDER, false)
         set(value) = sp.edit().putBoolean(KEY_KILL_SWITCH_REMINDER, value).apply()
 
+    /** Карточка статуса kill switch на главном экране (можно скрыть и вернуть в настройках). */
+    var showKillSwitchStatus: Boolean
+        get() = sp.getBoolean(KEY_SHOW_KILL_SWITCH_STATUS, true)
+        set(value) = sp.edit().putBoolean(KEY_SHOW_KILL_SWITCH_STATUS, value).apply()
+
     /**
      * Диалог уведомлений показывается после первого успешного подключения,
      * а не при каждом старте приложения. Флаг не даёт спрашивать повторно.
@@ -186,6 +191,7 @@ class Prefs(context: Context) {
         private const val KEY_AUTO_SWITCH = "auto_switch"
         private const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"
+        private const val KEY_SHOW_KILL_SWITCH_STATUS = "show_kill_switch_status"
         private const val KEY_NOTIFICATION_PERMISSION = "notification_permission_requested"
         private const val KEY_VPN_WANTED = "vpn_wanted"
         private const val KEY_HWID = "hwid"

@@ -294,6 +294,8 @@
     <string name="kill_switch_on">Kill switch включён: Always-on VPN и блокировка без VPN активны</string>
     <string name="kill_switch_off">Kill switch выключен — включите Always-on VPN и «Блокировать подключения без VPN» в настройках Android</string>
     <string name="kill_switch_unknown">Статус kill switch доступен на Android 10 и новее</string>
+    <string name="hide_kill_switch_cd">Скрыть статус защиты</string>
+    <string name="show_kill_switch_status">Показывать статус защиты на главном экране</string>
     <string name="battery_hint_title">Не дайте системе убить VPN</string>
     <string name="battery_hint_text">На Xiaomi, Huawei и Samsung отключите оптимизацию батареи для RKN VPN и разрешите фоновую работу. Иначе сервис и обновление подписки могут останавливаться.</string>
     <string name="battery_open_settings">Настройки батареи</string>

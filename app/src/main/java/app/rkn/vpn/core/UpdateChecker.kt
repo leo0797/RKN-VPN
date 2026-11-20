@@ -116,8 +116,9 @@ object UpdateChecker {
 
     /**
      * CI дописывает в описание релиза строки вида
-     * `app-arm64-v8a-release.apk: <64 hex>`. Принимаем и обратный порядок,
-     * и обёртку в backticks — чтобы старые релизы не ломали парсер.
+     * `RKN-VPN-1.0.24-arm64-v8a.apk: <64 hex>` (в старых релизах —
+     * `app-arm64-v8a-release.apk: <64 hex>`). Принимаем и обратный порядок,
+     * и обёртку в backticks, чтобы старые релизы не ломали парсер.
      */
     internal fun parseChecksums(notes: String): Map<String, String> {
         val hashRegex = Regex("[a-fA-F0-9]{64}")

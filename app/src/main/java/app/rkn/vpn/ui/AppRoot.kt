@@ -159,7 +159,8 @@ fun AppRoot(onRequestConnect: () -> Unit) {
                         onSaveSubscription = { url ->
                             VpnController.setSubscriptionUrl(url)
                             VpnController.refreshSubscription()
-                        }
+                        },
+                        onDismissKillSwitch = { VpnController.setKillSwitchCardVisible(false) }
                     )
 
                     TAB_SERVERS -> ServersScreen(

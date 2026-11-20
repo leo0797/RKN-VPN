@@ -89,6 +89,7 @@ data class AppState(
     val splitApps: Set<String> = emptySet(),
     val checkUrl: String = Prefs.DEFAULT_CHECK_URL,
     val autoSwitch: Boolean = true,
+    val showKillSwitchStatus: Boolean = true,
     val theme: String = "system",
     val language: String = "system"
 ) {
