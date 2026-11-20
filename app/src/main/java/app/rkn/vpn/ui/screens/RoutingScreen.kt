@@ -28,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.rkn.vpn.R
+import app.rkn.vpn.core.RoutingPreset
 import app.rkn.vpn.core.RoutingPresets
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.RoutingRule
@@ -74,6 +76,7 @@ fun RoutingScreen(
     onDeleteRule: (String) -> Unit
 ) {
     var showDialog by remember { mutableStateOf(false) }
+    var viewPreset by remember { mutableStateOf<RoutingPreset?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -138,13 +141,40 @@ fun RoutingScreen(
             item {
                 SectionCard(title = stringResource(R.string.presets_title)) {
                     RoutingPresets.ALL.forEach { preset ->
-                        LabeledSwitch(
-                            title = stringResource(preset.nameRes),
-                            subtitle = stringResource(preset.descriptionRes) +
-                                " · " + stringResource(R.string.preset_count, preset.domains.size),
-                            checked = preset.id in state.activePresets,
-                            onChange = { onPresetChange(preset.id, it) }
-                        )
+                        val presetName = stringResource(preset.nameRes)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = presetName,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = stringResource(preset.descriptionRes) +
+                                        " · " + stringResource(R.string.preset_count, preset.domains.size),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                TextButton(
+                                    onClick = { viewPreset = preset },
+                                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.preset_view),
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Switch(
+                                checked = preset.id in state.activePresets,
+                                onCheckedChange = { onPresetChange(preset.id, it) }
+                            )
+                        }
                     }
                 }
             }
@@ -219,6 +249,49 @@ fun RoutingScreen(
                     )
                 )
                 showDialog = false
+            }
+        )
+    }
+
+    val preset = viewPreset
+    if (preset != null) {
+        AlertDialog(
+            onDismissRequest = { viewPreset = null },
+            title = { Text(stringResource(R.string.preset_contents_title)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = stringResource(preset.nameRes),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(preset.descriptionRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.preset_contents_domains, preset.domains.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = preset.domains.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewPreset = null }) {
+                    Text(stringResource(R.string.close))
+                }
             }
         )
     }

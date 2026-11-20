@@ -83,6 +83,10 @@
     <string name="preset_updates_direct_title">Updates and app stores</string>
     <string name="preset_updates_direct_desc">OS update servers and app stores go directly</string>
     <string name="preset_count">%1$d domains</string>
+    <string name="preset_view">View</string>
+    <string name="preset_view_cd">View contents of preset "%1$s"</string>
+    <string name="preset_contents_title">Preset contents</string>
+    <string name="preset_contents_domains">Domains (%1$d)</string>
     <string name="custom_rules">Custom rules</string>
     <string name="rules_count">%1$d rules</string>
     <string name="no_rules">No rules</string>

@@ -83,6 +83,10 @@
     <string name="preset_updates_direct_title">Обновления и магазины</string>
     <string name="preset_updates_direct_desc">Центры обновлений ОС и магазины приложений идут напрямую</string>
     <string name="preset_count">%1$d доменов</string>
+    <string name="preset_view">Просмотреть</string>
+    <string name="preset_view_cd">Просмотреть состав набора «%1$s»</string>
+    <string name="preset_contents_title">Состав набора</string>
+    <string name="preset_contents_domains">Домены (%1$d)</string>
     <string name="custom_rules">Свои правила</string>
     <string name="rules_count">%1$d правил</string>
     <string name="no_rules">Правил нет</string>

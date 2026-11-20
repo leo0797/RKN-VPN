@@ -127,12 +127,38 @@ fun AppsScreen(
                         FilterChip(
                             selected = state.splitMode == "include",
                             onClick = { onSetSplitMode("include") },
-                            label = { SingleLineLabel(text = stringResource(R.string.split_mode_excluded)) }
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.split_mode_excluded),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        hyphens = androidx.compose.ui.text.style.Hyphens.None
+                                    ),
+                                    softWrap = true,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         )
                         FilterChip(
                             selected = state.splitMode == "exclude",
                             onClick = { onSetSplitMode("exclude") },
-                            label = { SingleLineLabel(text = stringResource(R.string.split_mode_all)) }
+                            modifier = Modifier.weight(1f),
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.split_mode_all),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        hyphens = androidx.compose.ui.text.style.Hyphens.None
+                                    ),
+                                    softWrap = true,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         )
                     }
                     Spacer(Modifier.height(8.dp))
