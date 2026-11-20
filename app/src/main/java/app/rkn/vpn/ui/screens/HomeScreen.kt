@@ -78,24 +78,10 @@ import app.rkn.vpn.ui.components.SectionCard
 import app.rkn.vpn.ui.components.SingleLineLabel
 import app.rkn.vpn.ui.components.StatTile
 import app.rkn.vpn.util.Format
+import app.rkn.vpn.util.SystemKillSwitch
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.roundToInt
-
-/**
- * Статические VpnService.isAlwaysOn()/isLockdownEnabled() появились только в
- * API 29, а экран должен работать и на API 24. Читаем те же системные настройки
- * напрямую: для Always-on VPN это имя пакета, для блокировки — флаг 0/1.
- */
-private fun isSystemKillSwitchOn(context: Context): Boolean {
-    val resolver = context.contentResolver
-    if (Settings.Secure.getString(resolver, "always_on_vpn_app") != context.packageName) {
-        return false
-    }
-    return runCatching {
-        Settings.Secure.getInt(resolver, "always_on_vpn_lockdown", 0)
-    }.getOrDefault(0) == 1
-}
 
 @Composable
 fun HomeScreen(
@@ -152,7 +138,7 @@ fun HomeScreen(
         }
     }
 
-    val killSwitchOn = isSystemKillSwitchOn(context)
+    val killSwitchOn = SystemKillSwitch.isOn(context)
     val manufacturer = Build.MANUFACTURER.lowercase(Locale.ROOT)
     val showBatteryHint = listOf("xiaomi", "huawei", "samsung")
         .any { manufacturer.contains(it) }
