@@ -42,7 +42,15 @@ object UpdateChecker {
     internal fun checkRepo(repo: String, proxy: LocalProxy? = null): Result =
         checkUrl("https://api.github.com/repos/$repo/releases/latest", proxy)
 
-    internal fun checkUrl(urlString: String, proxy: LocalProxy? = null): Result = runCatching {
+    internal fun checkUrl(urlString: String, proxy: LocalProxy? = null): Result {
+        val direct = fetchOnce(urlString, null)
+        if (direct !is Result.Failed || direct.reason != Result.Failure.NETWORK || proxy == null) {
+            return direct
+        }
+        return fetchOnce(urlString, proxy)
+    }
+
+    private fun fetchOnce(urlString: String, proxy: LocalProxy?): Result = runCatching {
         val url = URL(urlString)
         val connection = if (proxy != null) {
             proxy.open(url)
