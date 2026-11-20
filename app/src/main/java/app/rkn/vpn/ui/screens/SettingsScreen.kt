@@ -231,7 +231,11 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    OutlinedButton(onClick = onRefresh, enabled = !state.refreshing) {
+                    OutlinedButton(
+                        onClick = onRefresh,
+                        enabled = !state.refreshing,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         SingleLineLabel(
                             text = stringResource(R.string.refresh),
                             textAlign = TextAlign.Center,

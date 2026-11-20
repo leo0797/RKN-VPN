@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.rkn.vpn.R
+import app.rkn.vpn.util.Format
 
 /**
  * Короткая подпись под иконкой или в компактном элементе (таб, чип, бейдж).
@@ -276,7 +277,7 @@ fun LetterAvatar(text: String, seed: Int, size: Int = 40) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text.take(1).uppercase(),
+            text = Format.initial(text),
             color = color,
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleMedium

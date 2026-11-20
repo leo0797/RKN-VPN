@@ -57,4 +57,15 @@ object Format {
         value < 0 -> "—"
         else -> "$value ${if (russian) "мс" else "ms"}"
     }
+
+    /**
+     * Первый символ строки целиком, а не первый UTF-16 char.
+     * Флаги и эмоджи состоят из суррогатных пар: `take(1)` даёт
+     * одиночный суррогат, который ломает UI automation и скринридеры.
+     */
+    fun initial(text: String): String {
+        if (text.isEmpty()) return ""
+        val codePoint = text.codePointAt(0)
+        return String(Character.toChars(codePoint)).uppercase()
+    }
 }
