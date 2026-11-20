@@ -110,6 +110,24 @@ class Prefs(context: Context) {
         ).apply()
 
     /**
+     * DNS-режим: auto, cloudflare, google, custom.
+     * auto — DoH + policy для ru/su/рф и fallback на system.
+     */
+    var dnsMode: String
+        get() = when (sp.getString(KEY_DNS_MODE, DNS_AUTO)) {
+            DNS_CLOUDFLARE, DNS_GOOGLE, DNS_CUSTOM -> sp.getString(KEY_DNS_MODE, DNS_AUTO)!!
+            else -> DNS_AUTO
+        }
+        set(value) = sp.edit().putString(
+            KEY_DNS_MODE,
+            if (value in ALLOWED_DNS_MODES) value else DNS_AUTO
+        ).apply()
+
+    var dnsCustom: String
+        get() = sp.getString(KEY_DNS_CUSTOM, "")?.trim().orEmpty()
+        set(value) = sp.edit().putString(KEY_DNS_CUSTOM, value.trim()).apply()
+
+    /**
      * Если выбранный узел не отвечает, попробовать переключиться на другой
      * рабочий узел вместо того, чтобы оставлять подключение мёртвым.
      */
@@ -188,6 +206,13 @@ class Prefs(context: Context) {
         private const val KEY_UPDATE_INTERVAL = "update_interval"
         private const val KEY_CHECK_URL = "check_url"
         const val DEFAULT_CHECK_URL = "https://www.gstatic.com/generate_204"
+        const val DNS_AUTO = "auto"
+        const val DNS_CLOUDFLARE = "cloudflare"
+        const val DNS_GOOGLE = "google"
+        const val DNS_CUSTOM = "custom"
+        private val ALLOWED_DNS_MODES = setOf(DNS_AUTO, DNS_CLOUDFLARE, DNS_GOOGLE, DNS_CUSTOM)
+        private const val KEY_DNS_MODE = "dns_mode"
+        private const val KEY_DNS_CUSTOM = "dns_custom"
         private const val KEY_AUTO_SWITCH = "auto_switch"
         private const val KEY_ONBOARDING_SHOWN = "onboarding_shown"
         private const val KEY_KILL_SWITCH_REMINDER = "kill_switch_reminder"

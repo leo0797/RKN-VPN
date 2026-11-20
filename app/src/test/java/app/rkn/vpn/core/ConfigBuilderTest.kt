@@ -4,6 +4,7 @@ import app.rkn.vpn.data.ProxyNode
 import app.rkn.vpn.data.RoutingRule
 import app.rkn.vpn.data.RuleTarget
 import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -162,5 +163,93 @@ class ConfigBuilderTest {
             val text = file.readText()
             assertFalse("${file.name}: не должно быть \\/", text.contains("\\/"))
         }
+    }
+
+    @Test
+    fun dnsAutoHasDohRuPolicyAndSystemFallback() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(params(node).copy(dnsMode = ConfigBuilder.DNS_AUTO))
+        val dns = JSONObject(config).getJSONObject("dns")
+
+        val nameservers = dns.getJSONArray("nameserver")
+        assertEquals(2, nameservers.length())
+        assertEquals("https://cloudflare-dns.com/dns-query", nameservers.getString(0))
+        assertEquals("https://dns.google/dns-query", nameservers.getString(1))
+
+        val policy = dns.getJSONObject("nameserver-policy")
+        assertEquals("77.88.8.8", policy.getJSONArray("+.ru").getString(0))
+        assertEquals("77.88.8.8", policy.getJSONArray("+.su").getString(0))
+        assertEquals("77.88.8.8", policy.getJSONArray("+.xn--p1ai").getString(0))
+
+        val fallback = dns.getJSONArray("fallback")
+        assertEquals(1, fallback.length())
+        assertEquals("system", fallback.getString(0))
+    }
+
+    @Test
+    fun dnsCloudflareModeUsesCloudflareNameserver() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(params(node).copy(dnsMode = ConfigBuilder.DNS_CLOUDFLARE))
+        val dns = JSONObject(config).getJSONObject("dns")
+        val nameservers = dns.getJSONArray("nameserver")
+        assertEquals(1, nameservers.length())
+        assertEquals("https://cloudflare-dns.com/dns-query", nameservers.getString(0))
+        assertEquals("system", dns.getJSONArray("fallback").getString(0))
+        assertTrue(dns.has("nameserver-policy"))
+    }
+
+    @Test
+    fun dnsGoogleModeUsesGoogleNameserver() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(params(node).copy(dnsMode = ConfigBuilder.DNS_GOOGLE))
+        val dns = JSONObject(config).getJSONObject("dns")
+        val nameservers = dns.getJSONArray("nameserver")
+        assertEquals(1, nameservers.length())
+        assertEquals("https://dns.google/dns-query", nameservers.getString(0))
+    }
+
+    @Test
+    fun dnsCustomValidUsesCustomAndKeepsPolicyFallback() {
+        val node = LinkParser.parse(wsLink)!!
+        val custom = "https://dns.example/dns-query"
+        val config = ConfigBuilder.build(
+            params(node).copy(dnsMode = ConfigBuilder.DNS_CUSTOM, dnsCustom = custom)
+        )
+        val dns = JSONObject(config).getJSONObject("dns")
+        val nameservers = dns.getJSONArray("nameserver")
+        assertEquals(1, nameservers.length())
+        assertEquals(custom, nameservers.getString(0))
+        assertEquals("77.88.8.8", dns.getJSONObject("nameserver-policy").getJSONArray("+.ru").getString(0))
+        assertEquals("system", dns.getJSONArray("fallback").getString(0))
+    }
+
+    @Test
+    fun dnsCustomInvalidFallsBackToSafeNameservers() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(
+            params(node).copy(dnsMode = ConfigBuilder.DNS_CUSTOM, dnsCustom = "not a dns;drop")
+        )
+        val dns = JSONObject(config).getJSONObject("dns")
+        val nameservers = dns.getJSONArray("nameserver")
+        assertEquals(2, nameservers.length())
+        assertEquals("https://cloudflare-dns.com/dns-query", nameservers.getString(0))
+        assertEquals("https://dns.google/dns-query", nameservers.getString(1))
+    }
+
+    @Test
+    fun isValidCustomDnsAcceptsSafeValuesAndRejectsInvalid() {
+        assertTrue(ConfigBuilder.isValidCustomDns("1.1.1.1"))
+        assertTrue(ConfigBuilder.isValidCustomDns("8.8.8.8"))
+        assertTrue(ConfigBuilder.isValidCustomDns("https://dns.google/dns-query"))
+        assertTrue(ConfigBuilder.isValidCustomDns("tls://1.1.1.1"))
+        assertTrue(ConfigBuilder.isValidCustomDns("quic://dns.adguard.com"))
+        assertTrue(ConfigBuilder.isValidCustomDns("system"))
+
+        assertFalse(ConfigBuilder.isValidCustomDns(""))
+        assertFalse(ConfigBuilder.isValidCustomDns("example.com"))
+        assertFalse(ConfigBuilder.isValidCustomDns("http://1.1.1.1"))
+        assertFalse(ConfigBuilder.isValidCustomDns("https://"))
+        assertFalse(ConfigBuilder.isValidCustomDns("1.1.1.1,8.8.8.8"))
+        assertFalse(ConfigBuilder.isValidCustomDns("256.0.0.1"))
     }
 }

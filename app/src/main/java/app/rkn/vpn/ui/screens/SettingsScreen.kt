@@ -47,10 +47,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import app.rkn.vpn.BuildConfig
 import app.rkn.vpn.R
 import app.rkn.vpn.core.ApkInstaller
+import app.rkn.vpn.core.ConfigBuilder
 import app.rkn.vpn.core.Strings
 import app.rkn.vpn.core.UpdateChecker
 import app.rkn.vpn.core.UpdateChecker.Release
 import app.rkn.vpn.data.AppState
+import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.ui.QrScanActivity
 import app.rkn.vpn.ui.components.HelpButton
 import app.rkn.vpn.ui.components.LabeledSwitch
@@ -73,6 +75,9 @@ fun SettingsScreen(
 ) {
     var url by remember(state.subscriptionUrl) { mutableStateOf(state.subscriptionUrl) }
     var checkUrl by remember(state.checkUrl) { mutableStateOf(state.checkUrl) }
+    var dnsMode by remember(state.dnsMode) { mutableStateOf(state.dnsMode) }
+    var dnsCustom by remember(state.dnsCustom) { mutableStateOf(state.dnsCustom) }
+    var dnsError by remember { mutableStateOf<String?>(null) }
     var logs by remember { mutableStateOf<String?>(null) }
     var fileMessage by remember { mutableStateOf<String?>(null) }
     var diagnosticsMessage by remember { mutableStateOf<String?>(null) }
@@ -408,6 +413,102 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.socks_text),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            SectionCard(title = stringResource(R.string.dns_title)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Prefs.DNS_AUTO to stringResource(R.string.dns_mode_auto),
+                        Prefs.DNS_CLOUDFLARE to stringResource(R.string.dns_mode_cloudflare)
+                    ).forEach { (value, label) ->
+                        FilterChip(
+                            selected = dnsMode == value,
+                            onClick = {
+                                dnsMode = value
+                                dnsError = null
+                                VpnController.setDns(value, dnsCustom)
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            label = {
+                                SingleLineLabel(
+                                    text = label,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Prefs.DNS_GOOGLE to stringResource(R.string.dns_mode_google),
+                        Prefs.DNS_CUSTOM to stringResource(R.string.dns_mode_custom)
+                    ).forEach { (value, label) ->
+                        FilterChip(
+                            selected = dnsMode == value,
+                            onClick = {
+                                dnsMode = value
+                                dnsError = null
+                                if (value != Prefs.DNS_CUSTOM) {
+                                    VpnController.setDns(value, dnsCustom)
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            label = {
+                                SingleLineLabel(
+                                    text = label,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        )
+                    }
+                }
+                if (dnsMode == Prefs.DNS_CUSTOM) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = dnsCustom,
+                        onValueChange = { dnsCustom = it; dnsError = null },
+                        label = { Text(stringResource(R.string.dns_custom_label)) },
+                        singleLine = true,
+                        isError = !dnsError.isNullOrBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = stringResource(R.string.dns_custom_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!dnsError.isNullOrBlank()) {
+                        Text(
+                            text = dnsError.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            val value = dnsCustom.trim()
+                            if (!ConfigBuilder.isValidCustomDns(value)) {
+                                dnsError = context.getString(R.string.dns_custom_invalid)
+                            } else {
+                                dnsError = null
+                                VpnController.setDns(Prefs.DNS_CUSTOM, value)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.dns_note),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

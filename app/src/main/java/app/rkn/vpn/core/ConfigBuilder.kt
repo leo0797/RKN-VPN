@@ -19,6 +19,15 @@ object ConfigBuilder {
     /** Ограничиваем число outbound'ов, чтобы конфиг не разрастался. */
     private const val MAX_HEALTH_NODES = 200
 
+    const val DNS_AUTO = "auto"
+    const val DNS_CLOUDFLARE = "cloudflare"
+    const val DNS_GOOGLE = "google"
+    const val DNS_CUSTOM = "custom"
+
+    private const val DOH_CLOUDFLARE = "https://cloudflare-dns.com/dns-query"
+    private const val DOH_GOOGLE = "https://dns.google/dns-query"
+    private const val RU_DNS = "77.88.8.8"
+
     data class Params(
         val mixedPort: Int,
         val apiPort: Int,
@@ -33,7 +42,9 @@ object ConfigBuilder {
         val presets: Set<String> = emptySet(),
         // Остальные узлы добавляются в конфиг, чтобы API mihomo мог проверить
         // их реальную доступность, не переключая текущее подключение.
-        val allNodes: List<ProxyNode> = emptyList()
+        val allNodes: List<ProxyNode> = emptyList(),
+        val dnsMode: String = DNS_AUTO,
+        val dnsCustom: String = ""
     )
 
     /** Имена outbound'ов, по ним к ним обращается API mihomo. */
@@ -112,27 +123,7 @@ object ConfigBuilder {
             // (fake-ip в 240.0.0.0/4), поэтому здесь НЕ включаем fake-ip: он
             // конфликтовал бы с диапазоном hev. DoH с IP-адресами bootstrap
             // не даёт утечки DNS мимо прокси и не требует системного резолвера.
-            .put(
-                "dns",
-                JSONObject()
-                    .put("enable", true)
-                    .put("ipv6", true)
-                    .put("enhanced-mode", "redir-host")
-                    .put(
-                        "nameserver",
-                        JSONArray()
-                            .put("https://cloudflare-dns.com/dns-query")
-                            .put("https://dns.google/dns-query")
-                    )
-                    .put(
-                        "proxy-server-nameserver",
-                        JSONArray().put("https://cloudflare-dns.com/dns-query")
-                    )
-                    .put(
-                        "bootstrap",
-                        JSONArray().put("1.1.1.1").put("8.8.8.8").put("1.0.0.1")
-                    )
-            )
+            .put("dns", buildDns(params))
             .put("proxies", proxies)
             .put("rules", rules)
 
@@ -147,6 +138,55 @@ object ConfigBuilder {
      * остальные escape-последовательности org.json (\", \\, \n, \t, \uXXXX)
      * в YAML поддерживаются.
      */
+
+    private fun buildDns(params: Params): JSONObject {
+        val mode = normalizeDnsMode(params.dnsMode)
+        val custom = params.dnsCustom.trim()
+        val nameservers = when (mode) {
+            DNS_CLOUDFLARE -> listOf(DOH_CLOUDFLARE)
+            DNS_GOOGLE -> listOf(DOH_GOOGLE)
+            DNS_CUSTOM -> {
+                val safe = if (isValidCustomDns(custom)) custom else null
+                if (safe != null) listOf(safe) else listOf(DOH_CLOUDFLARE, DOH_GOOGLE)
+            }
+            else -> listOf(DOH_CLOUDFLARE, DOH_GOOGLE)
+        }
+
+        val dns = JSONObject()
+            .put("enable", true)
+            .put("ipv6", true)
+            .put("enhanced-mode", "redir-host")
+            .put("nameserver", JSONArray(nameservers))
+            .put("proxy-server-nameserver", JSONArray().put(DOH_CLOUDFLARE))
+            .put("bootstrap", JSONArray().put("1.1.1.1").put("8.8.8.8").put("1.0.0.1"))
+            .put(
+                "nameserver-policy",
+                JSONObject()
+                    .put("+.ru", JSONArray().put(RU_DNS))
+                    .put("+.su", JSONArray().put(RU_DNS))
+                    .put("+.xn--p1ai", JSONArray().put(RU_DNS))
+            )
+            .put("fallback", JSONArray().put("system"))
+        return dns
+    }
+
+    private fun normalizeDnsMode(mode: String): String = when (mode) {
+        DNS_CLOUDFLARE, DNS_GOOGLE, DNS_CUSTOM -> mode
+        else -> DNS_AUTO
+    }
+
+    fun isValidCustomDns(value: String): Boolean {
+        val v = value.trim()
+        if (v.isEmpty() || v.contains('\n') || v.contains('\r') || v.contains(',')) return false
+        if (v.equals("system", ignoreCase = true)) return true
+        if (v.startsWith("https://", ignoreCase = true)) {
+            return v.length > "https://".length && !v.any { it.isWhitespace() }
+        }
+        if (v.startsWith("tls://", ignoreCase = true) || v.startsWith("quic://", ignoreCase = true)) {
+            return v.length > 7 && !v.any { it.isWhitespace() }
+        }
+        return isIpLiteral(v, 4) || isIpLiteral(v, 6)
+    }
     private fun JSONObject.toYamlSafeJson(): String = toString(2).replace("\\/", "/")
 
     private fun isValidRule(rule: RoutingRule): Boolean {

@@ -89,6 +89,8 @@ data class AppState(
     val splitMode: String = "include",
     val splitApps: Set<String> = emptySet(),
     val checkUrl: String = Prefs.DEFAULT_CHECK_URL,
+    val dnsMode: String = Prefs.DNS_AUTO,
+    val dnsCustom: String = "",
     val autoSwitch: Boolean = true,
     val showKillSwitchStatus: Boolean = true,
     val killSwitchStatus: SystemKillSwitch.Status = SystemKillSwitch.Status.UNKNOWN,

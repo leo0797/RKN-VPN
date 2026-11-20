@@ -311,4 +311,15 @@
     <string name="clipboard_not_link">В буфере обмена нет ссылки http:// или https://</string>
     <string name="deep_link_applied">Настройки из ссылки применены</string>
     <string name="error_deeplink_unknown">Не удалось распознать данные из ссылки</string>
+
+    <!-- DNS -->
+    <string name="dns_title">DNS</string>
+    <string name="dns_mode_auto">Авто</string>
+    <string name="dns_mode_cloudflare">Cloudflare</string>
+    <string name="dns_mode_google">Google</string>
+    <string name="dns_mode_custom">Свой адрес</string>
+    <string name="dns_custom_label">Адрес DNS</string>
+    <string name="dns_custom_hint">IP-адрес или DoH/DoT/QUIC (например: 1.1.1.1, https://dns.example/dns-query)</string>
+    <string name="dns_custom_invalid">Укажите корректный IP-адрес или поддерживаемый DNS-адрес (https://, tls://, quic:// или system)</string>
+    <string name="dns_note">Авто: DoH + политика для .ru, .su, .рф на российский DNS (77.88.8.8), откат — system. Изменения применятся при переподключении.</string>
 </resources>

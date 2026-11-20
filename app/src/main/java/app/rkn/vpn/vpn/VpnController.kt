@@ -115,6 +115,8 @@ object VpnController {
             splitMode = p.splitMode,
             splitApps = p.splitApps,
             checkUrl = p.checkUrl,
+            dnsMode = p.dnsMode,
+            dnsCustom = p.dnsCustom,
             autoSwitch = p.autoSwitch,
             showKillSwitchStatus = p.showKillSwitchStatus,
             killSwitchStatus = SystemKillSwitch.status(ctx),
@@ -545,6 +547,16 @@ object VpnController {
         val p = requirePrefs()
         p.checkUrl = url
         _state.update { it.copy(checkUrl = p.checkUrl) }
+    }
+
+    fun setDns(mode: String, custom: String = _state.value.dnsCustom) {
+        val p = requirePrefs()
+        p.dnsMode = mode
+        p.dnsCustom = custom
+        _state.update { it.copy(dnsMode = p.dnsMode, dnsCustom = p.dnsCustom) }
+        if (_state.value.connected || _state.value.connecting) {
+            scope.launch { connect() }
+        }
     }
 
     /** Автоматический переход на другой узел, если выбранный не отвечает. */

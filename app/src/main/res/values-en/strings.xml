@@ -311,4 +311,15 @@
     <string name="clipboard_not_link">The clipboard does not contain an http:// or https:// link</string>
     <string name="deep_link_applied">Settings from the link were applied</string>
     <string name="error_deeplink_unknown">Could not recognize data from the link</string>
+
+    <!-- DNS -->
+    <string name="dns_title">DNS</string>
+    <string name="dns_mode_auto">Auto</string>
+    <string name="dns_mode_cloudflare">Cloudflare</string>
+    <string name="dns_mode_google">Google</string>
+    <string name="dns_mode_custom">Custom</string>
+    <string name="dns_custom_label">Custom DNS</string>
+    <string name="dns_custom_hint">IP address or DoH/DoT/QUIC (e.g. 1.1.1.1, https://dns.example/dns-query)</string>
+    <string name="dns_custom_invalid">Enter a valid IP address or a supported DNS endpoint (https://, tls://, quic:// or system)</string>
+    <string name="dns_note">Auto: DoH plus policy for .ru, .su, .рф on Russian public DNS (77.88.8.8), fallback to system. Changes apply on reconnect.</string>
 </resources>
