@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Повторяем только сетевой троттлинг репозиториев (HTTP 429).
+# Повторяем сетевой троттлинг репозиториев (HTTP 429) и временные сбои загрузки
+# зависимостей Robolectric (MavenArtifactFetcher) в JVM-тестах.
 # Ошибки компиляции/тестов не маскируются и не перезапускаются.
 set -o pipefail
 
@@ -11,8 +12,8 @@ while true; do
     rm -f "$log"
     exit 0
   fi
-  if grep -qE '429|Too Many Requests' "$log" && [ "$attempt" -lt "$max_attempts" ]; then
-    echo "::warning::Maven repository throttled the request, retrying ($attempt/$max_attempts)"
+  if grep -qE '429|Too Many Requests|MavenArtifactFetcher' "$log" && [ "$attempt" -lt "$max_attempts" ]; then
+    echo "::warning::Transient dependency download failure, retrying ($attempt/$max_attempts)"
     attempt=$((attempt + 1))
     rm -f "$log"
     sleep 30
