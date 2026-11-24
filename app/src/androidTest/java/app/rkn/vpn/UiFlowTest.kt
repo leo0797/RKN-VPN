@@ -15,6 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.data.ProxyNode
 import app.rkn.vpn.data.SubscriptionInfo
+import app.rkn.vpn.vpn.VpnController
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -131,6 +132,9 @@ class UiFlowTest {
         )
         prefs.selectedId = "n1"
         prefs.subscription = SubscriptionInfo(title = "Test")
+        // VpnController читает Prefs только при инициализации приложения.
+        // setSubscriptionUrl вызывает syncActiveState и подтягивает уже записанные узлы.
+        VpnController.setSubscriptionUrl(prefs.subscriptionUrl)
         composeRule.activityRule.scenario.recreate()
         composeRule.waitForIdle()
 
