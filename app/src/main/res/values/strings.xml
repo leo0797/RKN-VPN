@@ -329,7 +329,7 @@
     <string name="profile_delete">Удалить профиль</string>
     <string name="profile_switch">Переключить</string>
     <string name="profile_refresh_all">Обновить все</string>
-    <string name="profile_default_name">Профиль %1</string>
+    <string name="profile_default_name">Профиль %1$d</string>
     <string name="profile_active">Активный</string>
     <string name="profile_added">Профиль добавлен</string>
     <string name="profile_deleted">Профиль удалён</string>
