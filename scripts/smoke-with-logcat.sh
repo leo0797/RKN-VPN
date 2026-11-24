@@ -20,4 +20,21 @@ adb logcat -b crash -d > logcat-crash.txt 2>&1 || true
 adb logcat -d -s AndroidRuntime:E DEBUG:* *:F > logcat-fatal.txt 2>&1 || true
 adb logcat -d > logcat.txt 2>&1 || true
 
+# ANR-трейки содержат стек main thread и недоступны обычному shell.
+# На эмуляторе adb root работает; на устройстве просто сохранится диагноз.
+adb root >/dev/null 2>&1 || true
+adb wait-for-device >/dev/null 2>&1 || true
+{
+  echo "=== ls -la /data/anr ==="
+  adb shell ls -la /data/anr 2>&1 || true
+  for name in $(adb shell ls /data/anr 2>/dev/null | tr -d '\r'); do
+    case "$name" in
+      anr_*|temp_anr_*) ;;
+      *) continue ;;
+    esac
+    echo "=== /data/anr/$name ==="
+    adb shell cat "/data/anr/$name" 2>&1 || true
+  done
+} > anr-traces.txt 2>&1
+
 exit $rc

@@ -192,6 +192,7 @@ jobs:
             logcat-crash.txt
             logcat-fatal.txt
             logcat.txt
+            anr-traces.txt
           if-no-files-found: ignore
           retention-days: 7
 
