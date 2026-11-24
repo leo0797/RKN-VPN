@@ -180,17 +180,7 @@ jobs:
           arch: ${{ matrix.arch }}
           profile: Nexus 5
           emulator-boot-timeout: 600
-          script: |
-            set +e
-            chmod +x ./gradlew
-            adb shell getconf PAGE_SIZE > device-info.txt 2>&1 || true
-            adb shell getprop ro.product.cpu.abilist >> device-info.txt 2>&1 || true
-            bash scripts/gradle-with-retry.sh :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
-            rc=$?
-            adb logcat -b crash -d > logcat-crash.txt 2>&1 || true
-            adb logcat -d -s AndroidRuntime:E DEBUG:* *:F > logcat-fatal.txt 2>&1 || true
-            adb logcat -d > logcat.txt 2>&1 || true
-            exit $rc
+          script: bash scripts/smoke-with-logcat.sh
 
       - name: Upload smoke logcat
         if: always()
