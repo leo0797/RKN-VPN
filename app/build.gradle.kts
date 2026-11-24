@@ -33,6 +33,13 @@ android {
 
         // Репозиторий для проверки обновлений через GitHub Releases API.
         buildConfigField("String", "UPDATE_REPO", "\"leo0797/RKN-VPN\"")
+
+        // Явно задаём runner и классы: legacy InstrumentationTestRunner сканирует
+        // весь classpath, из-за чего на API 35 instrumentation не укладывалась в
+        // стартовый таймаут и получала ANR до начала тестов.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["class"] =
+            "app.rkn.vpn.SmokeTest,app.rkn.vpn.UiFlowTest"
     }
 
     buildTypes {
