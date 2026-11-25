@@ -321,7 +321,7 @@
     <string name="dns_custom_label">Адрес DNS</string>
     <string name="dns_custom_hint">IP-адрес или DoH/DoT/QUIC (например: 1.1.1.1, https://dns.example/dns-query)</string>
     <string name="dns_custom_invalid">Укажите корректный IP-адрес или поддерживаемый DNS-адрес (https://, tls://, quic:// или system)</string>
-    <string name="dns_note">Авто: DoH + политика для .ru, .su, .рф на российский DNS (77.88.8.8), откат — system. Изменения применятся при переподключении.</string>
+    <string name="dns_note">Авто: DoH + политика для .ru, .su, .рф на российский DNS (77.88.8.8). Если провайдер блокирует DoH, выберите «Свой адрес» и укажите system. Изменения применятся при переподключении.</string>
 
     <!-- Профили подписок -->
     <string name="profiles_title">Профили подписок</string>

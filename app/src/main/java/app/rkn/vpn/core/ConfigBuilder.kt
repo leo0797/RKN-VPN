@@ -157,8 +157,10 @@ object ConfigBuilder {
             .put("ipv6", true)
             .put("enhanced-mode", "redir-host")
             .put("nameserver", JSONArray(nameservers))
-            .put("proxy-server-nameserver", JSONArray().put(DOH_CLOUDFLARE))
-            .put("bootstrap", JSONArray().put("1.1.1.1").put("8.8.8.8").put("1.0.0.1"))
+            .put("proxy-server-nameserver", JSONArray().put(DOH_CLOUDFLARE).put(DOH_GOOGLE))
+            // Ключа "bootstrap" в mihomo нет (он молча игнорируется, и ядро берёт свои китайские
+            // дефолты). Домены DoH-серверов резолвит default-nameserver, только чистые IP.
+            .put("default-nameserver", JSONArray().put("1.1.1.1").put("8.8.8.8").put("1.0.0.1").put(RU_DNS))
             .put(
                 "nameserver-policy",
                 JSONObject()
@@ -166,7 +168,9 @@ object ConfigBuilder {
                     .put("+.su", JSONArray().put(RU_DNS))
                     .put("+.xn--p1ai", JSONArray().put(RU_DNS))
             )
-            .put("fallback", JSONArray().put("system"))
+        // Без "fallback": при его наличии mihomo при старте грузит базу GeoIP (fallback-filter
+        // по умолчанию geoip CN), а каждый запрос идёт ещё и в запасной резолвер параллельно.
+        // Если DoH блокируется, пользователь может выбрать «свой» DNS и указать system.
         return dns
     }
 
