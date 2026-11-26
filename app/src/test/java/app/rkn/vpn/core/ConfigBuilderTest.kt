@@ -63,7 +63,13 @@ class ConfigBuilderTest {
             dns.getJSONArray("proxy-server-nameserver")
                 .getString(0).startsWith("https://")
         )
-        assertTrue(dns.getJSONArray("bootstrap").length() >= 2)
+        val defaultNs = dns.getJSONArray("default-nameserver")
+        assertTrue(defaultNs.length() >= 2)
+        // default-nameserver в mihomo допускает только чистые IPv4/IPv6-адреса.
+        assertTrue((0 until defaultNs.length()).all { !defaultNs.getString(it).contains("://") })
+        assertFalse(dns.has("bootstrap"))
+        assertFalse(dns.has("fallback"))
+        assertEquals(2, dns.getJSONArray("proxy-server-nameserver").length())
         assertFalse(config.contains("\"dns\": {\r\n  \"enable\": false"))
     }
 
@@ -166,7 +172,7 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun dnsAutoHasDohRuPolicyAndSystemFallback() {
+    fun dnsAutoHasDohAndRuPolicyWithoutFallback() {
         val node = LinkParser.parse(wsLink)!!
         val config = ConfigBuilder.build(params(node).copy(dnsMode = ConfigBuilder.DNS_AUTO))
         val dns = JSONObject(config).getJSONObject("dns")
@@ -181,9 +187,7 @@ class ConfigBuilderTest {
         assertEquals("77.88.8.8", policy.getJSONArray("+.su").getString(0))
         assertEquals("77.88.8.8", policy.getJSONArray("+.xn--p1ai").getString(0))
 
-        val fallback = dns.getJSONArray("fallback")
-        assertEquals(1, fallback.length())
-        assertEquals("system", fallback.getString(0))
+        assertFalse(dns.has("fallback"))
     }
 
     @Test
@@ -194,7 +198,7 @@ class ConfigBuilderTest {
         val nameservers = dns.getJSONArray("nameserver")
         assertEquals(1, nameservers.length())
         assertEquals("https://cloudflare-dns.com/dns-query", nameservers.getString(0))
-        assertEquals("system", dns.getJSONArray("fallback").getString(0))
+        assertFalse(dns.has("fallback"))
         assertTrue(dns.has("nameserver-policy"))
     }
 
@@ -209,7 +213,7 @@ class ConfigBuilderTest {
     }
 
     @Test
-    fun dnsCustomValidUsesCustomAndKeepsPolicyFallback() {
+    fun dnsCustomValidUsesCustomAndKeepsRuPolicy() {
         val node = LinkParser.parse(wsLink)!!
         val custom = "https://dns.example/dns-query"
         val config = ConfigBuilder.build(
@@ -220,7 +224,18 @@ class ConfigBuilderTest {
         assertEquals(1, nameservers.length())
         assertEquals(custom, nameservers.getString(0))
         assertEquals("77.88.8.8", dns.getJSONObject("nameserver-policy").getJSONArray("+.ru").getString(0))
-        assertEquals("system", dns.getJSONArray("fallback").getString(0))
+        assertFalse(dns.has("fallback"))
+    }
+
+    @Test
+    fun dnsCustomSystemIsAllowedForBlockedDoh() {
+        val node = LinkParser.parse(wsLink)!!
+        val config = ConfigBuilder.build(
+            params(node).copy(dnsMode = ConfigBuilder.DNS_CUSTOM, dnsCustom = "system")
+        )
+        val nameservers = JSONObject(config).getJSONObject("dns").getJSONArray("nameserver")
+        assertEquals(1, nameservers.length())
+        assertEquals("system", nameservers.getString(0))
     }
 
     @Test
