@@ -104,7 +104,7 @@ apksigner verify --print-certs RKN-VPN-<version>-<abi>.apk
 
 Актуальный SHA-256 отпечаток сертификата подписи (Signer #1):
 
-`ea25a0348c91cb401aba4319f944ca6029ff03eab21d7ae63dd67ceca2c84256`
+`fa8dc8198a713b10b1eb8e6faac429db8c2b607184a00764423d86cb017826cd`
 
 Если отпечаток отличается, не устанавливайте файл и скачайте APK только со страницы официального релиза.
 
