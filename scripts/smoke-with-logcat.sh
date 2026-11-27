@@ -6,6 +6,8 @@ set +e
 
 chmod +x ./gradlew
 
+api_level="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+
 {
   echo "SDK=$(adb shell getprop ro.build.version.sdk 2>&1)"
   echo "PAGE_SIZE=$(adb shell getconf PAGE_SIZE 2>&1)"
@@ -13,8 +15,22 @@ chmod +x ./gradlew
   echo "MODEL=$(adb shell getprop ro.product.model 2>&1)"
 } > device-info.txt 2>&1
 
-bash scripts/gradle-with-retry.sh :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
+run_smoke_tests() {
+  # gradle-with-retry.sh уже повторяет сетевые/зависимостные сбои.
+  bash scripts/gradle-with-retry.sh :app:connectedDebugAndroidTest -Prkn.splits.enabled=false --stacktrace
+}
+
+run_smoke_tests
 rc=$?
+
+# API 24 на GitHub-hosted эмуляторе иногда не успевает полностью подняться
+# к моменту запуска instrumented-тестов. Один повтор только для этого API.
+if [ "$rc" -ne 0 ] && [ "$api_level" = "24" ]; then
+  echo "::warning::API 24 smoke test failed, retrying once"
+  adb wait-for-device >/dev/null 2>&1 || true
+  run_smoke_tests
+  rc=$?
+fi
 
 adb logcat -b crash -d > logcat-crash.txt 2>&1 || true
 adb logcat -d -s AndroidRuntime:E DEBUG:* *:F > logcat-fatal.txt 2>&1 || true
