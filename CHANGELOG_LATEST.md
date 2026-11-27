@@ -1,9 +1,13 @@
-Что нового в 1.1.0:
+Что нового в 1.1.1:
 
-• Сменился ключ подписи. Удалите старое приложение и установите это.
-• Ссылку подписки после переустановки нужно добавить заново: токены не попадают в резервную копию.
+• Входящие ссылки (vless, clash, happ, rknvpn) применяются только после подтверждения: диалог показывает источник и число узлов.
+• Импорт из ссылки создаёт отдельный профиль, не заменяет активный и не включает автоподключение.
+• Перед публикацией CI сверяет сертификат подписанного APK с эталонным отпечатком.
+• Smoke-тест на API 24 повторяется один раз при падении эмулятора.
 
-What's new in 1.1.0:
+What's new in 1.1.1:
 
-• The signing key has changed. Uninstall the old app and install this one.
-• Add your subscription link again after reinstalling: tokens are not included in backups.
+• Incoming links (vless, clash, happ, rknvpn) are applied only after confirmation: the dialog shows the source and node count.
+• Link import creates a separate profile, keeps the active one and never turns on auto-connect.
+• CI verifies the signed APK certificate against the pinned fingerprint before publishing.
+• API 24 smoke test is retried once on an emulator failure.
