@@ -204,16 +204,80 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
+    env:
+      # Отпечаток нового ключа подписи. Старый ключ скомпрометирован.
+      EXPECTED_CERT_SHA256: fa8dc8198a713b10b1eb8e6faac429db8c2b607184a00764423d86cb017826cd
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Require signing secrets for release tag
+        run: |
+          missing=()
+          for name in SIGNING_KEYSTORE_BASE64 SIGNING_STORE_PASSWORD SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::Missing signing secrets for ${GITHUB_REF_NAME}: ${missing[*]}"
+            exit 1
+          fi
 
       - name: Download APK artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: rkn-vpn-${{ github.run_number }}
           path: apk
+
+      - name: Set up Android SDK
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | head -n 1)"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" --install "build-tools;35.0.0"
+          echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
+
+      # Даже если сборка как-то вышла неподписанной, в релиз она не попадёт.
+      - name: Verify APK signing certificate
+        run: |
+          set -euo pipefail
+          expected="${EXPECTED_CERT_SHA256//:/}"
+          expected="${expected,,}"
+          count=0
+          for apk in apk/*.apk; do
+            [ -f "$apk" ] || continue
+            if ! output="$(apksigner verify --print-certs "$apk" 2>&1)"; then
+              echo "::error::apksigner failed for $apk: $output"
+              exit 1
+            fi
+            signers="$(printf '%s\n' "$output" | grep -c '^Signer #[0-9][0-9]* certificate SHA-256 digest:' || true)"
+            if [ "$signers" -ne 1 ]; then
+              echo "::error::$apk has $signers signers, expected exactly 1"
+              exit 1
+            fi
+            actual="$(printf '%s\n' "$output" \
+              | sed -nE 's/^Signer #1 certificate SHA-256 digest: *([0-9A-Fa-f:]+).*/\1/p' \
+              | tr -d ':' | tr 'A-F' 'a-f')"
+            if [ -z "$actual" ]; then
+              echo "::error::Could not read SHA-256 certificate digest from $apk"
+              exit 1
+            fi
+            if [ "$actual" != "$expected" ]; then
+              echo "::error::Wrong signing certificate in $apk: $actual (expected $expected)"
+              exit 1
+            fi
+            echo "Verified $(basename "$apk"): $actual"
+            count=$((count + 1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No APKs found to verify"
+            exit 1
+          fi
 
       # Имя ассета должно говорить пользователю, что это и для какого устройства.
       # ABI оставляем в имени: in-app обновление ищет ассет по подстроке ABI.
