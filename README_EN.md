@@ -9,6 +9,9 @@ Quick Settings tile.
 
 > The app ships no servers. You need your own subscription or imported nodes.
 
+> ⚠️ **Versions below 1.1.0 were signed with a compromised key. Do not use them.**
+> Install 1.1.0 or newer only from the official releases page.
+
 ## Screenshots
 
 | Home | Servers |
