@@ -311,6 +311,13 @@
     <string name="clipboard_not_link">The clipboard does not contain an http:// or https:// link</string>
     <string name="deep_link_applied">Settings from the link were applied</string>
     <string name="error_deeplink_unknown">Could not recognize data from the link</string>
+    <string name="deep_link_title">Add from link?</string>
+    <string name="deep_link_source">Source: %1$s</string>
+    <string name="deep_link_nodes">Nodes: %1$s</string>
+    <string name="deep_link_nodes_unknown">loaded after confirmation</string>
+    <string name="deep_link_profile_name">Import from %1$s</string>
+    <string name="deep_link_profile_added">Profile added: %1$s</string>
+    <string name="error_deeplink_failed">Could not add the link</string>
 
     <!-- DNS -->
     <string name="dns_title">DNS</string>

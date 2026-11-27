@@ -311,6 +311,13 @@
     <string name="clipboard_not_link">В буфере обмена нет ссылки http:// или https://</string>
     <string name="deep_link_applied">Настройки из ссылки применены</string>
     <string name="error_deeplink_unknown">Не удалось распознать данные из ссылки</string>
+    <string name="deep_link_title">Добавить из ссылки?</string>
+    <string name="deep_link_source">Источник: %1$s</string>
+    <string name="deep_link_nodes">Узлов: %1$s</string>
+    <string name="deep_link_nodes_unknown">будут загружены после подтверждения</string>
+    <string name="deep_link_profile_name">Импорт из %1$s</string>
+    <string name="deep_link_profile_added">Профиль добавлен: %1$s</string>
+    <string name="error_deeplink_failed">Не удалось добавить ссылку</string>
 
     <!-- DNS -->
     <string name="dns_title">DNS</string>

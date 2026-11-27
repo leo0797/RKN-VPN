@@ -1,6 +1,7 @@
 package app.rkn.vpn
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -14,13 +15,17 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import app.rkn.vpn.core.DeepLinkCoordinator
+import app.rkn.vpn.core.DeepLinkTarget
 import app.rkn.vpn.data.Prefs
 import app.rkn.vpn.ui.AppRoot
 import app.rkn.vpn.vpn.VpnController
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 class MainActivity : BaseActivity() {
+
+    private lateinit var deepLinks: DeepLinkCoordinator
+    private var confirmationDialog: AlertDialog? = null
 
     private val vpnPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -39,15 +44,27 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        deepLinks = DeepLinkCoordinator(
+            onConfirmationRequired = { showDeepLinkDialog(it) },
+            profileName = { source -> getString(R.string.deep_link_profile_name, source) },
+            addNodes = { value, name -> VpnController.addNodesProfileFromLink(value, name) },
+            addSubscription = { url, name -> VpnController.addSubscriptionProfileFromLink(url, name) }
+        )
         setContent {
             AppRoot(onRequestConnect = { requestVpnPermission() })
         }
         observeFirstConnection()
         if (savedInstanceState == null) {
             val hadAutoConnectExtra = intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) == true
-            handleIntent(intent)
-            if (!hadAutoConnectExtra) maybeAutoConnectOnLaunch()
+            val deepLinkHandled = handleIntent(intent)
+            if (!deepLinkHandled && !hadAutoConnectExtra) maybeAutoConnectOnLaunch()
         }
+    }
+
+    override fun onDestroy() {
+        confirmationDialog?.dismiss()
+        confirmationDialog = null
+        super.onDestroy()
     }
 
     /**
@@ -79,58 +96,73 @@ class MainActivity : BaseActivity() {
      * Плитка быстрых настроек не может сама показать системный диалог
      * разрешения VPN, поэтому открывает приложение с этим extra —
      * и мы сразу запрашиваем разрешение и подключаемся.
+     *
+     * @return true, если intent был deep link: в этом случае автоподключение
+     * и автопереподключение запускать нельзя.
      */
-    private fun handleIntent(intent: Intent?) {
+    private fun handleIntent(intent: Intent?): Boolean {
         val data = intent?.data
         if (data != null) {
-            if (handleDeepLink(data)) {
-                VpnController.showError(getString(R.string.deep_link_applied))
-            } else {
+            intent?.data = null
+            if (!handleDeepLink(data)) {
                 VpnController.showError(getString(R.string.error_deeplink_unknown))
             }
-            intent?.data = null
+            // Даже если в intent есть EXTRA_AUTO_CONNECT, deep link не должен
+            // инициировать соединение без явного выбора пользователя.
+            return true
         }
 
         val autoConnect = intent?.getBooleanExtra(EXTRA_AUTO_CONNECT, false) ?: false
-        if (!autoConnect) return
+        if (!autoConnect) return false
         intent?.removeExtra(EXTRA_AUTO_CONNECT)
         val state = VpnController.state.value
-        if (state.connected || state.connecting || state.nodes.isEmpty()) return
+        if (state.connected || state.connecting || state.nodes.isEmpty()) return false
         requestVpnPermission()
+        return false
     }
 
-    /**
-     * Возвращает true, если ссылка распознана. Значение может быть адресом
-     * подписки (http/https) или готовой share-ссылкой/базой узлов — тогда
-     * используем тот же импорт, что и кнопка «Добавить».
-     */
-    private fun handleDeepLink(data: Uri): Boolean {
-        val scheme = data.scheme?.lowercase(Locale.ROOT).orEmpty()
-        val shareSchemes = setOf(
-            "vless", "vmess", "trojan", "ss", "ssr", "hysteria2", "hy2",
-            "tuic", "anytls", "wireguard"
-        )
-        val raw = when (scheme) {
-            in shareSchemes -> data.toString()
-            "clash" -> data.getQueryParameter("url")
-                ?: data.getQueryParameter("config")
-            "happ" -> data.getQueryParameter("url")
-                ?: data.getQueryParameter("add")
-                ?: data.path?.removePrefix("/")?.removePrefix("add/")?.let { Uri.decode(it) }
-            "rknvpn" -> data.getQueryParameter("url")
-                ?: data.getQueryParameter("text")
-                ?: data.path?.removePrefix("/")?.removePrefix("add/")?.let { Uri.decode(it) }
-            else -> null
-        } ?: return false
+    /** Только ставит ссылку в очередь ожидания подтверждения. */
+    private fun handleDeepLink(data: Uri): Boolean = deepLinks.handleDeepLink(data)
 
-        val value = raw.trim()
-        if (value.isEmpty()) return false
-        if (value.startsWith("http://", true) || value.startsWith("https://", true)) {
-            VpnController.setSubscriptionUrl(value)
-            VpnController.refreshSubscription()
-            return true
+    private fun showDeepLinkDialog(target: DeepLinkTarget) {
+        // Если пришла новая ссылка, старый диалог не должен сбросить уже
+        // поставленный в очередь новый target через onCancel.
+        val previous = confirmationDialog
+        confirmationDialog = null
+        previous?.dismiss()
+        val nodes = target.nodeCount?.toString()
+            ?: getString(R.string.deep_link_nodes_unknown)
+        val message = buildString {
+            append(getString(R.string.deep_link_source, target.source))
+            append('\n')
+            append(getString(R.string.deep_link_nodes, nodes))
+            if (target.insecureHttp) {
+                append("\n\n")
+                append(getString(R.string.warning_http_subscription))
+            }
         }
-        return VpnController.importText(value)
+        confirmationDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.deep_link_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.add) { _, _ ->
+                confirmationDialog = null
+                lifecycleScope.launch {
+                    if (!deepLinks.confirm()) {
+                        VpnController.showError(getString(R.string.error_deeplink_failed))
+                    }
+                }
+            }
+            .setNegativeButton(R.string.cancel) { _, _ ->
+                deepLinks.cancel()
+                confirmationDialog = null
+            }
+            .setOnCancelListener { dialog ->
+                if (confirmationDialog === dialog) {
+                    deepLinks.cancel()
+                    confirmationDialog = null
+                }
+            }
+            .show()
     }
 
     /**
