@@ -633,10 +633,10 @@ object VpnController {
                             info = result.info
                         )
                     },
-                    onFailure = { e ->
-                        _state.update {
-                            it.copy(error = e.message ?: text(R.string.error_deeplink_failed))
-                        }
+                    // Не показываем message исключения: он может содержать
+                    // ссылку подписки вместе с токеном.
+                    onFailure = {
+                        _state.update { it.copy(error = text(R.string.error_deeplink_failed)) }
                         false
                     }
                 )
