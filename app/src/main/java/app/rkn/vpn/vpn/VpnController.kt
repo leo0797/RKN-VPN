@@ -22,6 +22,7 @@ import app.rkn.vpn.core.RoutingPresets
 import app.rkn.vpn.core.Strings
 import app.rkn.vpn.data.AppState
 import app.rkn.vpn.data.Prefs
+import app.rkn.vpn.data.ProxyNode
 import app.rkn.vpn.data.RoutingRule
 import app.rkn.vpn.data.SubscriptionInfo
 import app.rkn.vpn.data.SubscriptionProfile
@@ -602,6 +603,76 @@ object VpnController {
         p.activeProfileId = profile.id
         syncActiveState(p)
         refreshSubscription(showToast = true)
+    }
+
+    /**
+     * Импорт из входящей ссылки: создаёт отдельный профиль, но не делает его
+     * активным и не трогает текущее подключение. В отличие от [addProfile],
+     * не загружает подписку повторно и не вызывает autoreconnect.
+     */
+    fun addNodesProfileFromLink(value: String, name: String): Boolean {
+        val nodes = ConfigImporter.import(value)
+        if (nodes.isEmpty()) {
+            _state.update { it.copy(error = text(R.string.error_import_unknown)) }
+            return false
+        }
+        return addDeepLinkProfile(name = name, url = "", nodes = nodes)
+    }
+
+    suspend fun addSubscriptionProfileFromLink(url: String, name: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val p = requirePrefs()
+            val strings = Strings { id, args -> text(id, *args) }
+            runCatching { SubscriptionRepository(p, strings).fetch(url, localProxy()) }
+                .fold(
+                    onSuccess = { result ->
+                        addDeepLinkProfile(
+                            name = name,
+                            url = url,
+                            nodes = result.nodes,
+                            info = result.info
+                        )
+                    },
+                    // Не показываем message исключения: он может содержать
+                    // ссылку подписки вместе с токеном.
+                    onFailure = {
+                        _state.update { it.copy(error = text(R.string.error_deeplink_failed)) }
+                        false
+                    }
+                )
+        }
+
+    private fun addDeepLinkProfile(
+        name: String,
+        url: String,
+        nodes: List<ProxyNode>,
+        info: SubscriptionInfo = SubscriptionInfo()
+    ): Boolean {
+        if (nodes.isEmpty()) {
+            _state.update { it.copy(error = text(R.string.error_deeplink_failed)) }
+            return false
+        }
+        val p = requirePrefs()
+        val activeBefore = p.activeProfileId
+        val profile = p.createProfile(name = name.trim(), url = url.trim())
+        // createProfile делает новый профиль активным только если активного не было.
+        // Возвращаем прежний: imported-профиль должен просто появиться в списке.
+        p.activeProfileId = activeBefore
+        p.updateProfile(
+            profile.copy(
+                subscription = info.copy(
+                    title = info.title.ifBlank { name.trim() },
+                    updatedAt = System.currentTimeMillis()
+                ),
+                nodes = nodes,
+                selectedId = nodes.first().id
+            )
+        )
+        syncActiveState(p)
+        _state.update {
+            it.copy(error = null, toast = text(R.string.deep_link_profile_added, name.trim()))
+        }
+        return true
     }
 
     fun removeProfile(id: String) {
